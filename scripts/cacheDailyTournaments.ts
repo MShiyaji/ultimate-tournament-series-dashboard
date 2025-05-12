@@ -3,6 +3,8 @@ import { createClient } from "@supabase/supabase-js";
 import { addDays } from "date-fns";
 
 const API_URL = "https://api.start.gg/gql/alpha";
+import * as dotenv from "dotenv";
+dotenv.config({ path: ".env" });
 
 const supabase = createClient(
   process.env.SUPABASE_URL!,
@@ -32,6 +34,10 @@ const basicQuery = `
     }
   }
 `;
+
+function delay(ms: number) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
 
 async function fetchFromAPI(query: string, variables: Record<string, any>) {
   const response = await fetch(API_URL, {
@@ -86,6 +92,7 @@ async function cacheBasicTournaments() {
     let totalPages = 1;
 
     do {
+      await delay(1000);
       const result = await fetchFromAPI(basicQuery, {
         startTimestamp: chunkStartTimestamp,
         endTimestamp: chunkEndTimestamp,
