@@ -41,7 +41,7 @@ export function TournamentDashboard() {
 
   const fetchData = async () => {
     if (!dateRange.start || !dateRange.end || (!primaryContact.trim() && !tournamentSeriesName.trim())) {
-      setError("Please select a date range and enter either a tournament series name or a primary contact");
+      setError("Please select a date range and enter either a tournament series name or/and a primary contact");
       return;
     }
 
@@ -156,7 +156,7 @@ export function TournamentDashboard() {
           <Info className="h-4 w-4" />
           <AlertTitle>No Data Found</AlertTitle>
           <AlertDescription>
-            No tournaments were found in the selected date range. Try expanding your date range or selecting a different period.
+            No tournaments were found in the selected date range. Try expanding your date range, or adding missing values.
           </AlertDescription>
         </Alert>
       )}
@@ -195,7 +195,7 @@ export function TournamentDashboard() {
       {/* Default Message */}
       {!isLoading && !error && !noData && !tournamentData && (
         <div className="flex flex-col justify-center items-center h-64 text-muted-foreground">
-          <p className="mb-4">Select a date range, enter a series name (ex. Guildhouse) and/or primary contact (to include tournaments that are named something different) and click "Update Data"</p>
+          <p className="mb-4">Select a date range, enter a series name (ex. Guildhouse) and/or primary contact (usually a discord link or TO email in the startgg page header) and click "Update Data"</p>
           <p className="text-sm max-w-md text-center">
             This will retrieve competitor data from all tournaments in that series during the specified time period.
           </p>
