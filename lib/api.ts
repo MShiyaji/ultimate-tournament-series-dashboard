@@ -79,7 +79,12 @@ export async function fetchberkeleyTournaments(startDate: string, endDate: strin
   }
 
   const text = await fileData.text();
-  const allTournaments: any[] = JSON.parse(text);
+  const allTournaments: any[] = JSON.parse(text).filter(t => {
+  const start = new Date(startDate);
+  const end = new Date(endDate);
+  const tournamentDate = new Date(t.startAt * 1000); // convert Unix to Date
+  return tournamentDate >= start && tournamentDate <= end;
+});
   const detailedTournaments = [];
 
   for (const tournament of allTournaments) {
@@ -102,7 +107,7 @@ export async function fetchberkeleyTournaments(startDate: string, endDate: strin
     if (!shouldQuery) continue;
 
     try {
-      await delay(800);
+      await delay(500);
       const detailedData = await fetchFromAPI(detailQuery, { tournamentId: tournament.id });
       const detailed = detailedData?.tournament;
 
