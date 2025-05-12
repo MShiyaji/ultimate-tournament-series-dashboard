@@ -1,0 +1,28 @@
+name: Daily Tournament Cache
+
+on:
+  schedule:
+    - cron: '0 8 * * *'  # every day at 8 AM UTC
+  workflow_dispatch:
+
+jobs:
+  update-cache:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v3
+
+      - name: Set up Node
+        uses: actions/setup-node@v3
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Run cacheDailyTournaments
+        run: npx tsx scripts/cacheDailyTournaments.ts
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+          STARTGG_API_KEY: ${{ secrets.STARTGG_API_KEY }}
