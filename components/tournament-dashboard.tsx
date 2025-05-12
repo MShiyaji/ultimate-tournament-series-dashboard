@@ -104,7 +104,7 @@ export function TournamentDashboard() {
           <DateRangeSelector dateRange={dateRange} onDateRangeChange={setDateRange} />
           <input
             type="text"
-            placeholder="Enter primary contact (if you need one)"
+            placeholder="Enter primary contact (if there are tournaments with varying series names)"
             value={primaryContact}
             onChange={(e) => setPrimaryContact(e.target.value)}
             className="mt-2 w-full border rounded px-3 py-2 text-sm"

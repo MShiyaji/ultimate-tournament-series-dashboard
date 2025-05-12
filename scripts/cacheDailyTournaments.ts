@@ -76,7 +76,7 @@ export async function fetchCachedBasicTournaments(): Promise<any[]> {
 }
 
 async function cacheBasicTournaments() {
-  const startDate = new Date("2024-01-01");
+  const startDate = new Date("2018-01-01");
   const endDate = new Date();
   const chunkSizeDays = 21;
 
