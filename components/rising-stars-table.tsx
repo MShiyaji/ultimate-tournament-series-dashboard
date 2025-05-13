@@ -16,8 +16,18 @@ import {
 import { Badge } from "@/components/ui/badge"
 import { TrendingUp } from "lucide-react"
 
-export function RisingStarsTable({ players }) {
+export function RisingStarsTable({ players, filterName }) {
   if (!players || players.length === 0) return null
+
+  // Always use the full players array for ranking
+  const allPlayers = players
+
+  // Filter by player name if filterName is provided
+  const filteredPlayers = filterName?.trim()
+    ? allPlayers.filter((p) =>
+        p.name?.toLowerCase().includes(filterName.trim().toLowerCase())
+      )
+    : allPlayers.slice(0, 5)
 
   return (
     <Card>
@@ -43,24 +53,36 @@ export function RisingStarsTable({ players }) {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {players.map((player, index) => (
-              <TableRow key={player.id || player.name}>
-                <TableCell className="font-medium">{index + 1}</TableCell>
-                <TableCell>{player.name}</TableCell>
-                <TableCell className="text-right text-green-700 font-bold">
-                  +{Number(player.improvementScore).toFixed(3)}
-                </TableCell>
-                <TableCell className="text-right">
-                  {Number(player.earlyAvg).toFixed(3)}
-                </TableCell>
-                <TableCell className="text-right">
-                  <Badge variant="outline">
-                    {Number(player.lateAvg).toFixed(3)}
-                  </Badge>
-                </TableCell>
-                <TableCell className="text-right">{player.tournaments}</TableCell>
-              </TableRow>
-            ))}
+            {filteredPlayers.map((player) => {
+              // Find the player's overall rank among allPlayers
+              const overallRank = allPlayers.findIndex(p => p.id === player.id) + 1
+              const improvement = Number(player.improvementScore)
+              const improvementColor =
+                improvement > 0
+                  ? "text-green-700 font-bold"
+                  : improvement < 0
+                  ? "text-red-700 font-bold"
+                  : ""
+
+              return (
+                <TableRow key={player.id || player.name}>
+                  <TableCell className="font-medium">{overallRank}</TableCell>
+                  <TableCell>{player.name}</TableCell>
+                  <TableCell className={`text-right ${improvementColor}`}>
+                    {improvement.toFixed(3)}
+                  </TableCell>
+                  <TableCell className="text-right">
+                    {Number(player.earlyAvg).toFixed(3)}
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <Badge variant="outline">
+                      {Number(player.lateAvg).toFixed(3)}
+                    </Badge>
+                  </TableCell>
+                  <TableCell className="text-right">{player.tournaments}</TableCell>
+                </TableRow>
+              )
+            })}
           </TableBody>
         </Table>
       </CardContent>

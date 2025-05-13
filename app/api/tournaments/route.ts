@@ -15,23 +15,25 @@ function generateCacheKey({
   endDate,
   primaryContact,
   tournamentSeriesName,
+  playerName
 }: {
   startDate: string;
   endDate: string;
   primaryContact: string;
   tournamentSeriesName: string;
+  playerName: string;
 }): string {
-  return JSON.stringify({ startDate, endDate, primaryContact, tournamentSeriesName });
+  return JSON.stringify({ startDate, endDate, primaryContact, tournamentSeriesName, playerName});
 }
 
 export async function POST(req: Request) {
-  const { startDate, endDate, primaryContact, tournamentSeriesName } = await req.json();
+  const { startDate, endDate, primaryContact, tournamentSeriesName, playerName} = await req.json();
 
   if (!startDate || !endDate || (!primaryContact && !tournamentSeriesName)) {
     return new Response("Missing required fields", { status: 400 });
   }
 
-  const cacheKey = generateCacheKey({ startDate, endDate, primaryContact, tournamentSeriesName });
+  const cacheKey = generateCacheKey({ startDate, endDate, primaryContact, tournamentSeriesName, playerName});
 
   let rawTournamentData;
 
@@ -49,7 +51,7 @@ export async function POST(req: Request) {
     });
   }
 
-  const processedStats = processberkeleyData(rawTournamentData);
+  const processedStats = processberkeleyData(rawTournamentData, playerName);
 
   return new Response(JSON.stringify(processedStats), {
     status: 200,

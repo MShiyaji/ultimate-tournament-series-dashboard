@@ -3,7 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge"
 import { Target } from "lucide-react"
 
-export function ConsistencyTable({ players }) {
+export function ConsistencyTable({ players, filterName }) {
   // Mock data for demonstration
   const mockPlayers = [
     { id: 1, name: "Dabuz", consistency: "92%", seedVariance: "±1.2", tournaments: 5 },
@@ -11,8 +11,15 @@ export function ConsistencyTable({ players }) {
     { id: 3, name: "Kola", consistency: "85%", seedVariance: "±2.1", tournaments: 4 },
   ]
 
-  // Filter players with at least 2 tournaments
-  const displayPlayers = (players || mockPlayers).filter((player) => player.tournaments >= 2)
+  // Use provided players or mock data, filter for at least 2 tournaments
+  const allPlayers = players
+
+  // Filter by player name if filterName is provided
+  const filteredPlayers = filterName?.trim()
+    ? allPlayers.filter((p) =>
+        p.name?.toLowerCase().includes(filterName.trim().toLowerCase())
+      )
+    : allPlayers.slice(0, 5) // Only show top 5 if no filter
 
   return (
     <Card>
@@ -35,19 +42,23 @@ export function ConsistencyTable({ players }) {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {displayPlayers.map((player, index) => (
-              <TableRow key={player.id}>
-                <TableCell className="font-medium">{index + 1}</TableCell>
-                <TableCell>
-                  <div className="font-medium">{player.name}</div>
-                </TableCell>
-                <TableCell className="text-right">
-                  <Badge variant={index < 2 ? "default" : "outline"}>{player.consistency}</Badge>
-                </TableCell>
-                <TableCell className="text-right">{player.tournaments}</TableCell>
-                <TableCell className="text-right">{player.upsetFactorVariance}</TableCell>
-              </TableRow>
-            ))}
+            {filteredPlayers.map((player) => {
+              // Find the player's overall rank among allPlayers
+              const overallRank = allPlayers.findIndex(p => p.id === player.id) + 1
+              return (
+                <TableRow key={player.id}>
+                  <TableCell className="font-medium">{overallRank}</TableCell>
+                  <TableCell>
+                    <div className="font-medium">{player.name}</div>
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <Badge variant={overallRank < 3 ? "default" : "outline"}>{player.consistency}</Badge>
+                  </TableCell>
+                  <TableCell className="text-right">{player.tournaments}</TableCell>
+                  <TableCell className="text-right">{player.seedVariance ?? player.upsetFactorVariance}</TableCell>
+                </TableRow>
+              )
+            })}
           </TableBody>
         </Table>
       </CardContent>

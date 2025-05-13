@@ -24,6 +24,7 @@ export function TournamentDashboard() {
     end: format(today, "yyyy-MM-dd"),
   })
   const [primaryContact, setPrimaryContact] = useState("")
+  const [playerName, setPlayerName] = useState("");
   const [tournamentData, setTournamentData] = useState<{
     seriesName?: string
     summary?: any
@@ -65,6 +66,7 @@ export function TournamentDashboard() {
           endDate: dateRange.end,
           primaryContact: primaryContact.trim(),
           tournamentSeriesName: tournamentSeriesName.trim(),
+          playerName: playerName.trim(),
         }),
       });
 
@@ -95,9 +97,18 @@ export function TournamentDashboard() {
       setIsLoading(false);
     }
   }
+
+  // Helper function to filter players by name (case-insensitive)
+  const filterByPlayerName = (arr) =>
+    playerName.trim()
+      ? arr?.filter((p) =>
+          p.name?.toLowerCase().includes(playerName.trim().toLowerCase())
+        )
+      : arr;
+
   return (
     <div className="container mx-auto py-6 space-y-8">
-      <DashboardHeader title={`${tournamentData?.seriesName || "Tournament"} Dashboard`} />
+      <DashboardHeader title={"Smash Ultimate Tournament Dashboard"} />
 
       <div className="flex flex-col md:flex-row gap-4 items-end">
         <div className="flex-1">
@@ -114,6 +125,13 @@ export function TournamentDashboard() {
             placeholder="Enter tournament series name"
             value={tournamentSeriesName}
             onChange={(e) => setTournamentSeriesName(e.target.value)}
+            className="mb-2 w-full border rounded px-3 py-2 text-sm"
+          />
+          <input
+            type="text"
+            placeholder="Filter by player name"
+            value={playerName}
+            onChange={(e) => setPlayerName(e.target.value)}
             className="mb-2 w-full border rounded px-3 py-2 text-sm"
           />
         </div>
@@ -167,13 +185,13 @@ export function TournamentDashboard() {
           <StatsCards stats={tournamentData.summary} />
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <TopPerformersTable players={tournamentData.topPerformers} />
-            <RisingStarsTable players={tournamentData.risingStars} />
+            <TopPerformersTable players={tournamentData.topPerformers} filterName={playerName} />
+            <RisingStarsTable players={tournamentData.risingStars} filterName={playerName} />
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <SeedPerformanceTable players={tournamentData.seedOutperformers} />
-            <ConsistencyTable players={tournamentData.consistentPlayers} />
+            <SeedPerformanceTable players={tournamentData.seedOutperformers} filterName={playerName} />
+            <ConsistencyTable players={tournamentData.consistentPlayers} filterName={playerName} />
           </div>
 
           {/* Tournament Names */}

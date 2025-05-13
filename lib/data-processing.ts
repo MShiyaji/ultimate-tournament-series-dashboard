@@ -33,7 +33,7 @@ async function loadPlayerPoints(): Promise<Map<string, number>> {
 
   return playerPoints;
 }
-export function processberkeleyData(data: { tournaments: any }) {
+export function processberkeleyData(data: { tournaments: any }, playerName?: string) {
   try {
     console.log("Processing tournament data")
 
@@ -346,7 +346,6 @@ export function processberkeleyData(data: { tournaments: any }) {
         return b.averageNormalizedPlacement - a.averageNormalizedPlacement || b.tournaments - a.tournaments
       }
     })
-    .slice(0, 5)
     .map((p) => ({
       ...p,
       avgPlacement: p.avgPlacement,
@@ -362,7 +361,7 @@ export function processberkeleyData(data: { tournaments: any }) {
     
 
     const seedOutperformers = [...validPlayers]
-    .filter((p) => p.tournaments >= Math.max((.25)*tournaments.length, 2) && p.avgUpsetFactor > 0 && p.seeds.some((s) => s > 0))
+    .filter((p) => p.tournaments >= Math.max((.25)*tournaments.length, 2))
     .sort((a, b) => {
       if (tournaments.length > 5) {
         // Primary: avgUpsetFactor * adjustedLog, Secondary: tournaments
@@ -372,26 +371,24 @@ export function processberkeleyData(data: { tournaments: any }) {
         return b.avgUpsetFactor - a.avgUpsetFactor || b.tournaments - a.tournaments
       }
     })
-    .slice(0, 5)
     .map((p) => ({
       ...p,
-      avgUpsetFactor: `+${p.avgUpsetFactor.toFixed(1)}`,
-      bestOutperform: `+${p.bestOutperform}`,
+      avgUpsetFactor: `${p.avgUpsetFactor.toFixed(1)}`,
+      bestOutperform: `${p.bestOutperform}`,
       tournaments: p.tournaments,
-      adjustedLog: tournaments.length > 5 && p.adjustedLog !== undefined
+      adjustedLog: tournaments.lengthmu > 5 && p.adjustedLog !== undefined
         ? p.adjustedLog.toFixed(2)
         : undefined, // Include adjustedLog only if applicable
     }))
 
     const consistentPlayers = [...validPlayers]
-    .filter((p) => p.tournaments >= Math.max((.25)*tournaments.length, 2) && p.seeds.some((s) => s > 0))
+    .filter((p) => p.tournaments >= Math.max((.25)*tournaments.length, 2))
     .sort((a, b) => {
       // Primary: consistency * adjustedLog, Secondary: tournaments
       const aWeighted = (a.consistency ?? 0) * (a.adjustedLog ?? 0);
       const bWeighted = (b.consistency ?? 0) * (b.adjustedLog ?? 0);
       return bWeighted - aWeighted || b.tournaments - a.tournaments;
     })
-    .slice(0, 5)
     .map((p) => ({
       ...p,
       consistency: `${p.consistency}%`,
@@ -399,24 +396,28 @@ export function processberkeleyData(data: { tournaments: any }) {
       upsetFactorVariance: p.upsetFactorVariance.toFixed(2), // Include variance
     }))
     const risingStars = [...validPlayers]
-    .filter(
-      (p) =>
-        p.tournaments >= Math.max((.33)*tournaments.length, 2) &&
-        !topPerformers.some((topPlayer) => topPlayer.id === p.id) // Exclude top performers
-    )
-    .sort((a, b) => { return b.improvementScore - a.improvementScore || b.tournaments - a.tournaments;
-    })
-    .slice(0, 5)
-    .map((p) => ({
-      ...p,
-      tournaments: p.tournaments,
-      performanceScore: tournaments.length > 5 && p.performanceScore !== undefined
-        ? p.performanceScore
-        : undefined, // Include performanceScore only if applicable
-      averageNormalizedPlacement: tournaments.length <= 5 && p.averageNormalizedPlacement !== undefined
-        ? p.averageNormalizedPlacement
-        : undefined, // Include averageNormalizedPlacement only if applicable
-    }));
+      .filter(
+        (p) =>
+          p.tournaments >= Math.max(0.33 * tournaments.length, 2) &&
+          (
+            playerName
+              ? true
+              : !topPerformers.slice(0, 5).some((topPlayer) => topPlayer.id === p.id)
+          )
+      )
+      .sort((a, b) => b.improvementScore - a.improvementScore || b.tournaments - a.tournaments)
+      .map((p) => ({
+        ...p,
+        tournaments: p.tournaments,
+        performanceScore:
+          tournaments.length > 5 && p.performanceScore !== undefined
+            ? p.performanceScore
+            : undefined, // Include performanceScore only if applicable
+        averageNormalizedPlacement:
+          tournaments.length <= 5 && p.averageNormalizedPlacement !== undefined
+            ? p.averageNormalizedPlacement
+            : undefined, // Include averageNormalizedPlacement only if applicable
+      }));
     // Generate performance chart data for top 5 players
     const performanceData: { tournament: any }[] = []
     const topPlayerIds = topPerformers.map((p) => p.id)
@@ -450,15 +451,15 @@ export function processberkeleyData(data: { tournaments: any }) {
         let found = false;
         eventsToProcess.forEach((event) => {
           if (!event || !event.standings || !event.standings.nodes || found) return;
-    
+
           const standing = event.standings.nodes.find(
             (s: { entrant: { participants: { player: { id: any } }[]; id: any } }) =>
               s && s.entrant && (s.entrant.participants?.[0]?.player?.id === playerId || s.entrant.id === playerId)
           );
-    
+
           if (standing) {
             dataPoint[player.name] = standing.placement;
-            found = true;
+            found = true; // Optionally set found to true if you want to stop after the first match
           }
         });
       });
@@ -479,8 +480,26 @@ export function processberkeleyData(data: { tournaments: any }) {
       upsetRate: matchCount > 0 ? `${Math.round((upsetCount / matchCount) * 100)}%` : "0%",
     }
     // get a list of all tournament names
-    const tournamentNames = data.tournaments.nodes.map((tournament: { name: string }) => tournament.name);
-    console.log("Tournament names:", tournamentNames)
+    const tournamentNames = tournaments.map((tournament: { name: string }) => tournament.name);
+
+    let filteredTournamentNames = tournamentNames;
+    if (playerName && playerName.trim()) {
+      const lowerPlayerName = playerName.trim().toLowerCase();
+      filteredTournamentNames = tournaments
+        .filter(tournament =>
+          tournament.events.some(event =>
+            event.standings?.nodes?.some(
+              (standing: any) =>
+                standing.entrant?.participants?.some(
+                  (participant: any) =>
+                    participant.player?.gamerTag?.toLowerCase() === lowerPlayerName
+                )
+            )
+          )
+        )
+        .map((tournament: { name: string }) => tournament.name);
+    }
+
     console.log("Data processing complete")
 
     return {
@@ -490,7 +509,7 @@ export function processberkeleyData(data: { tournaments: any }) {
       consistentPlayers,
       performanceData,
       risingStars,
-      tournamentNames
+      tournamentNames: filteredTournamentNames
     }
   } catch (error) {
     console.error("Error processing tournament data:", error)

@@ -3,15 +3,16 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge"
 import { TrendingUp } from "lucide-react"
 
-export function SeedPerformanceTable({ players }) {
-  // Mock data for demonstration
-  const mockPlayers = [
-    { id: 1, name: "ProtoBanham", avgUpsetFactor: "+12.4", bestOutperform: "+24", tournaments: 4 },
-    { id: 2, name: "Zomba", avgUpsetFactor: "+8.7", bestOutperform: "+16", tournaments: 5 },
-    { id: 3, name: "Riddles", avgUpsetFactor: "+7.2", bestOutperform: "+12", tournaments: 5 },
-  ]
+export function SeedPerformanceTable({ players, filterName }) {
+  // Always use the full players array for ranking
+  const allPlayers = players
 
-  const displayPlayers = players || mockPlayers
+  // Filter by player name if filterName is provided
+  const filteredPlayers = filterName?.trim()
+    ? allPlayers.filter((p) =>
+        p.name?.toLowerCase().includes(filterName.trim().toLowerCase())
+      )
+    : allPlayers.slice(0, 5) // Only show top 5 if no filter
 
   return (
     <Card>
@@ -34,23 +35,43 @@ export function SeedPerformanceTable({ players }) {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {displayPlayers.map((player, index) => (
-              <TableRow key={player.id}>
-                <TableCell className="font-medium">{index + 1}</TableCell>
-                <TableCell>
-                  <div className="font-medium">{player.name}</div>
-                </TableCell>
-                <TableCell className="text-right font-medium text-green-600 dark:text-green-500">
-                  {player.avgUpsetFactor}
-                </TableCell>
-                <TableCell className="text-right">
-                  <Badge variant="outline" className="text-green-600 dark:text-green-500">
-                    {player.bestOutperform}
-                  </Badge>
-                </TableCell>
-                <TableCell className="text-right">{player.tournaments}</TableCell>
-              </TableRow>
-            ))}
+            {filteredPlayers.map((player) => {
+              // Color avgUpsetFactor: green if positive, red if negative, default otherwise
+              const avg = Number(player.avgUpsetFactor)
+              const avgColor =
+                avg > 0
+                  ? "text-green-700 font-bold"
+                  : avg < 0
+                  ? "text-red-700 font-bold"
+                  : ""
+              // Color bestOutperform: green if positive, red if negative, default otherwise
+              const best = Number(player.bestOutperform)
+              const bestColor =
+                best > 0
+                  ? "text-green-700 font-bold"
+                  : best < 0
+                  ? "text-red-700 font-bold"
+                  : ""
+              // Find the player's overall rank among allPlayers
+              const overallRank = allPlayers.findIndex(p => p.id === player.id) + 1
+              return (
+                <TableRow key={player.id}>
+                  <TableCell className="font-medium">{overallRank}</TableCell>
+                  <TableCell>
+                    <div className="font-medium">{player.name}</div>
+                  </TableCell>
+                  <TableCell className={`text-right font-medium ${avgColor}`}>
+                    {isNaN(avg) ? "-" : avg.toFixed(2)}
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <Badge variant="outline" className={bestColor}>
+                      {isNaN(best) ? "-" : best.toFixed(2)}
+                    </Badge>
+                  </TableCell>
+                  <TableCell className="text-right">{player.tournaments}</TableCell>
+                </TableRow>
+              )
+            })}
           </TableBody>
         </Table>
       </CardContent>
