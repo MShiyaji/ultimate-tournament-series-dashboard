@@ -1,10 +1,8 @@
 // scripts/cacheDailyTournaments.ts
 import { createClient } from "@supabase/supabase-js";
-import { addDays } from "date-fns";
+import { addDays, subDays } from "date-fns";
 
 const API_URL = "https://api.start.gg/gql/alpha";
-import * as dotenv from "dotenv";
-dotenv.config({ path: ".env" });
 
 const supabase = createClient(
   process.env.SUPABASE_URL!,
@@ -68,7 +66,7 @@ export async function fetchCachedBasicTournaments(): Promise<any[]> {
 
   if (error) {
     console.error("❌ Failed to read from Supabase cache:", error);
-    throw new Error("Failed to load cached tournaments");
+    return [];
   }
 
   const text = await data.text();
@@ -76,11 +74,14 @@ export async function fetchCachedBasicTournaments(): Promise<any[]> {
 }
 
 async function cacheBasicTournaments() {
-  const startDate = new Date("2018-01-01");
-  const endDate = new Date();
-  const chunkSizeDays = 21;
+  const existingTournaments = await fetchCachedBasicTournaments();
+  const existingIds = new Set(existingTournaments.map(t => t.id));
 
-  const allTournaments: any[] = [];
+  const startDate = subDays(new Date(), 1); // yesterday
+  const endDate = new Date(); // today
+  const chunkSizeDays = 1;
+
+  const newTournaments: any[] = [];
   let currentStart = startDate;
 
   while (currentStart < endDate) {
@@ -102,19 +103,26 @@ async function cacheBasicTournaments() {
       const tournaments = result?.tournaments?.nodes || [];
       totalPages = result?.tournaments?.pageInfo?.totalPages || 1;
 
-      allTournaments.push(...tournaments);
+      for (const t of tournaments) {
+        if (!existingIds.has(t.id)) {
+          newTournaments.push(t);
+        }
+      }
+
       page++;
     } while (page <= totalPages);
 
     currentStart = currentEnd;
   }
 
-  console.log(`📦 Collected ${allTournaments.length} tournaments. Uploading...`);
+  const updatedTournaments = [...existingTournaments, ...newTournaments];
+
+  console.log(`📦 Merged total tournaments: ${updatedTournaments.length}`);
 
   const { data, error } = await supabase
     .storage
     .from("tournament-cache")
-    .upload("basic-cache.json", JSON.stringify(allTournaments), {
+    .upload("basic-cache.json", JSON.stringify(updatedTournaments), {
       upsert: true,
       contentType: "application/json",
     });
