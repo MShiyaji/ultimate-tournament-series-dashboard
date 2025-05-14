@@ -13,27 +13,36 @@ const CACHE_TTL = 1000 * 60 * 10; // 10 minutes
 function generateCacheKey({
   startDate,
   endDate,
-  primaryContact,
-  tournamentSeriesName,
-  playerName
+  seriesInputs,
+  playerName,
 }: {
   startDate: string;
   endDate: string;
-  primaryContact: string;
-  tournamentSeriesName: string;
+  seriesInputs: { tournamentSeriesName: string; primaryContact: string }[];
   playerName: string;
 }): string {
-  return JSON.stringify({ startDate, endDate, primaryContact, tournamentSeriesName, playerName});
+  // Use a stable stringification for the array
+  return JSON.stringify({ startDate, endDate, seriesInputs, playerName });
 }
 
 export async function POST(req: Request) {
-  const { startDate, endDate, primaryContact, tournamentSeriesName, playerName} = await req.json();
+  const { startDate, endDate, seriesInputs, playerName, attendanceRatio } = await req.json();
 
-  if (!startDate || !endDate || (!primaryContact && !tournamentSeriesName)) {
+  if (
+    !startDate ||
+    !endDate ||
+    !Array.isArray(seriesInputs) ||
+    seriesInputs.length === 0 ||
+    seriesInputs.every(
+      (s) =>
+        (!s.tournamentSeriesName || !s.tournamentSeriesName.trim()) &&
+        (!s.primaryContact || !s.primaryContact.trim())
+    )
+  ) {
     return new Response("Missing required fields", { status: 400 });
   }
 
-  const cacheKey = generateCacheKey({ startDate, endDate, primaryContact, tournamentSeriesName, playerName});
+  const cacheKey = generateCacheKey({ startDate, endDate, seriesInputs, playerName });
 
   let rawTournamentData;
 
@@ -43,7 +52,7 @@ export async function POST(req: Request) {
     rawTournamentData = { tournaments: { nodes: cached.data } };
   } else {
     console.log("⏳ Fetching fresh tournament data");
-    const result = await fetchberkeleyTournaments(startDate, endDate, primaryContact, tournamentSeriesName);
+    const result = await fetchberkeleyTournaments(startDate, endDate, seriesInputs);
     rawTournamentData = result;
     basicTournamentCache.set(cacheKey, {
       data: result.tournaments.nodes,
@@ -51,7 +60,7 @@ export async function POST(req: Request) {
     });
   }
 
-  const processedStats = processberkeleyData(rawTournamentData, playerName);
+  const processedStats = processberkeleyData(rawTournamentData, playerName, attendanceRatio);
 
   return new Response(JSON.stringify(processedStats), {
     status: 200,

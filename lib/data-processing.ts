@@ -33,7 +33,7 @@ async function loadPlayerPoints(): Promise<Map<string, number>> {
 
   return playerPoints;
 }
-export function processberkeleyData(data: { tournaments: any }, playerName?: string) {
+export function processberkeleyData(data: { tournaments: any }, playerName?: string, attendanceRatio?: number) {
   try {
     console.log("Processing tournament data")
 
@@ -42,7 +42,6 @@ export function processberkeleyData(data: { tournaments: any }, playerName?: str
       console.log("Invalid tournament data format")
       throw new Error("Invalid tournament data format")
     }
-
     const tournaments = data.tournaments.nodes.filter((t) => t && t.events && t.events.length > 0)
     console.log(`Found ${tournaments.length} tournaments with events`)
     
@@ -336,7 +335,7 @@ export function processberkeleyData(data: { tournaments: any }, playerName?: str
 
     // Sort players by different metrics
     const topPerformers = [...validPlayers]
-    .filter(p => p.tournaments >= Math.max((.25)*tournaments.length, 2)) // Filter based on if they have attended more than 1/4 of total tournaments or 2, whichever is lower
+    .filter(p => p.tournaments >= Math.max(attendanceRatio*tournaments.length, 2)) // Filter based on if they have attended more than 1/4 of total tournaments or 2, whichever is lower
     .sort((a, b) => {
       if (tournaments.length > 5) {
         // Primary: performanceScore, Secondary: tournaments
@@ -361,7 +360,7 @@ export function processberkeleyData(data: { tournaments: any }, playerName?: str
     
 
     const seedOutperformers = [...validPlayers]
-    .filter((p) => p.tournaments >= Math.max((.25)*tournaments.length, 2))
+    .filter((p) => p.tournaments >= Math.max(attendanceRatio*tournaments.length, 2))
     .sort((a, b) => {
       if (tournaments.length > 5) {
         // Primary: avgUpsetFactor * adjustedLog, Secondary: tournaments
@@ -382,7 +381,7 @@ export function processberkeleyData(data: { tournaments: any }, playerName?: str
     }))
 
     const consistentPlayers = [...validPlayers]
-    .filter((p) => p.tournaments >= Math.max((.25)*tournaments.length, 2))
+    .filter((p) => p.tournaments >= Math.max(attendanceRatio*tournaments.length, 2))
     .sort((a, b) => {
       // Primary: consistency * adjustedLog, Secondary: tournaments
       const aWeighted = (a.consistency ?? 0) * (a.adjustedLog ?? 0);
@@ -398,7 +397,7 @@ export function processberkeleyData(data: { tournaments: any }, playerName?: str
     const risingStars = [...validPlayers]
       .filter(
         (p) =>
-          p.tournaments >= Math.max(0.33 * tournaments.length, 2) &&
+          p.tournaments >= Math.max(attendanceRatio * tournaments.length, 2) &&
           (
             playerName
               ? true

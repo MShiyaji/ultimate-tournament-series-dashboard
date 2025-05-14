@@ -15,6 +15,37 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { AlertCircle, Info } from "lucide-react"
 import { extractSeriesName } from "@/lib/utils"
 
+// Helper component for info popover
+function InfoPopover({ text }: { text: string }) {
+  const [open, setOpen] = useState(false)
+  return (
+    <span
+      className="relative inline-block ml-1 align-middle"
+      onMouseEnter={() => setOpen(true)}
+      onMouseLeave={() => setOpen(false)}
+      tabIndex={0}
+    >
+      <button
+        type="button"
+        aria-label="Info"
+        className="text-gray-400 hover:text-gray-600 focus:outline-none p-0 m-0"
+        tabIndex={-1}
+        style={{ lineHeight: 0 }}
+      >
+        <Info className="inline h-3 w-3" />
+      </button>
+      {open && (
+        <div
+          className="absolute z-20 left-full top-0 -translate-y-full ml-2 w-72 rounded-md bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-700 shadow-lg p-3 text-xs text-gray-800 dark:text-gray-200"
+          style={{ minWidth: "16rem", maxWidth: "20rem", whiteSpace: "normal" }}
+        >
+          {text}
+        </div>
+      )}
+    </span>
+  )
+}
+
 export function TournamentDashboard() {
   const today = new Date()
   const sixMonthsAgo = subMonths(today, 4)
@@ -25,6 +56,8 @@ export function TournamentDashboard() {
   })
   const [primaryContact, setPrimaryContact] = useState("")
   const [playerName, setPlayerName] = useState("");
+  const [activePlayerName, setActivePlayerName] = useState("");
+  const [attendanceRatio, setAttendanceRatio] = useState(""); // was 0.25
   const [tournamentData, setTournamentData] = useState<{
     seriesName?: string
     summary?: any
@@ -39,10 +72,31 @@ export function TournamentDashboard() {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState("")
   const [noData, setNoData] = useState(false)
+  const [seriesInputs, setSeriesInputs] = useState([
+    { tournamentSeriesName: "", primaryContact: "" },
+  ]);
+
+  const handleSeriesInputChange = (idx, field, value) => {
+    setSeriesInputs(inputs =>
+      inputs.map((input, i) =>
+        i === idx ? { ...input, [field]: value } : input
+      )
+    );
+  };
+
+  const addSeriesInput = () => {
+    if (seriesInputs.length < 4) {
+      setSeriesInputs([...seriesInputs, { tournamentSeriesName: "", primaryContact: "" }]);
+    }
+  };
+
+  const removeSeriesInput = (idx) => {
+    setSeriesInputs(inputs => inputs.filter((_, i) => i !== idx));
+  };
 
   const fetchData = async () => {
-    if (!dateRange.start || !dateRange.end || (!primaryContact.trim() && !tournamentSeriesName.trim())) {
-      setError("Please select a date range and enter either a tournament series name or/and a primary contact");
+    if (!dateRange.start || !dateRange.end || seriesInputs.every(s => !s.tournamentSeriesName.trim() && !s.primaryContact.trim())) {
+      setError("Please select a date range and enter at least one tournament series name or primary contact");
       return;
     }
 
@@ -51,12 +105,7 @@ export function TournamentDashboard() {
     setNoData(false);
 
     try {
-      console.log("Request Payload:", {
-        startDate: dateRange.start,
-        endDate: dateRange.end,
-        primaryContact: primaryContact.trim(),
-        tournamentSeriesName: tournamentSeriesName.trim(),
-      });
+      setActivePlayerName(playerName);
 
       const response = await fetch("/api/tournaments", {
         method: "POST",
@@ -64,9 +113,9 @@ export function TournamentDashboard() {
         body: JSON.stringify({
           startDate: dateRange.start,
           endDate: dateRange.end,
-          primaryContact: primaryContact.trim(),
-          tournamentSeriesName: tournamentSeriesName.trim(),
+          seriesInputs,
           playerName: playerName.trim(),
+          attendanceRatio: attendanceRatio === "" ? 0.25 : Number(attendanceRatio),
         }),
       });
 
@@ -98,11 +147,10 @@ export function TournamentDashboard() {
     }
   }
 
-  // Helper function to filter players by name (case-insensitive)
   const filterByPlayerName = (arr) =>
-    playerName.trim()
+    activePlayerName.trim()
       ? arr?.filter((p) =>
-          p.name?.toLowerCase().includes(playerName.trim().toLowerCase())
+          p.name?.toLowerCase().includes(activePlayerName.trim().toLowerCase())
         )
       : arr;
 
@@ -112,44 +160,139 @@ export function TournamentDashboard() {
 
       <div className="flex flex-col md:flex-row gap-4 items-end">
         <div className="flex-1">
-          <DateRangeSelector dateRange={dateRange} onDateRangeChange={setDateRange} />
-          <input
-            type="text"
-            placeholder="Enter primary contact (if there are tournaments with varying series names)"
-            value={primaryContact}
-            onChange={(e) => setPrimaryContact(e.target.value)}
-            className="mt-2 w-full border rounded px-3 py-2 text-sm"
-          />
-          <input
-            type="text"
-            placeholder="Enter tournament series name"
-            value={tournamentSeriesName}
-            onChange={(e) => setTournamentSeriesName(e.target.value)}
-            className="mb-2 w-full border rounded px-3 py-2 text-sm"
-          />
-          <input
-            type="text"
-            placeholder="Filter by player name"
-            value={playerName}
-            onChange={(e) => setPlayerName(e.target.value)}
-            className="mb-2 w-full border rounded px-3 py-2 text-sm"
-          />
-        </div>
-        <div className="w-full md:w-auto">
-          <Button
-            onClick={fetchData}
-            disabled={isLoading || !dateRange.start || !dateRange.end}
-            className="w-full md:w-auto"
-          >
-            {isLoading ? (
-              <>
-                <RefreshCw className="mr-2 h-4 w-4 animate-spin" /> Loading...
-              </>
-            ) : (
-              "Update Data"
+          {/* Find Series Section */}
+          <div className="mb-4">
+            <h3 className="font-semibold text-2xl mb-3">Find Series</h3>
+            {seriesInputs.map((input, idx) => (
+              <div key={idx} className="flex gap-2 mb-2">
+                <input
+                  type="text"
+                  placeholder={`Tournament Series Name #${idx + 1}`}
+                  value={input.tournamentSeriesName}
+                  onChange={e => handleSeriesInputChange(idx, "tournamentSeriesName", e.target.value)}
+                  className="w-1/2 border rounded px-4 py-3 text-base"
+                />
+                <input
+                  type="text"
+                  placeholder={`Primary Contact #${idx + 1} (optional)`}
+                  value={input.primaryContact}
+                  onChange={e => handleSeriesInputChange(idx, "primaryContact", e.target.value)}
+                  className="w-1/2 border rounded px-4 py-3 text-base"
+                />
+                {seriesInputs.length > 1 && (
+                  <button
+                    type="button"
+                    onClick={() => removeSeriesInput(idx)}
+                    className="text-red-500 text-xs ml-2"
+                  >
+                    Remove
+                  </button>
+                )}
+              </div>
+            ))}
+            {seriesInputs.length < 4 && (
+              <button
+                type="button"
+                onClick={addSeriesInput}
+                className="mt-1 px-4 py-2 rounded bg-white text-black border border-gray-300 shadow-sm font-medium transition hover:bg-gray-100"
+              >
+                + Add Another Series
+              </button>
             )}
-          </Button>
+          </div>
+
+          {/* Filters Section */}
+          <div className="mb-2 bg-gray-100 dark:bg-zinc-900 rounded-lg p-4">
+            <h3 className="font-semibold text-base mb-2">Filters</h3>
+            <div className="flex flex-col md:flex-row md:gap-4">
+              {/* Player Name + Attendance Ratio */}
+              <div className="flex flex-1 flex-row gap-2 mb-2 md:mb-0">
+                <div className="flex flex-col w-1/2">
+                  <span className="text-xs font-medium mb-1 flex items-center">
+                    Player Tag
+                    <InfoPopover text="Filter results to only show data for a specific player tag (case-insensitive)." />
+                  </span>
+                  <input
+                    type="text"
+                    placeholder="Optional: Filter by Player Tag (ex. Lui$)"
+                    value={playerName}
+                    onChange={(e) => setPlayerName(e.target.value)}
+                    className="border rounded px-3 py-2 text-sm w-full h-10"
+                  />
+                </div>
+                <div className="flex flex-col w-1/2">
+                  <span className="text-xs font-medium mb-1 flex items-center">
+                    Attendance Threshold (%)
+                    <InfoPopover text="Minimum percent of tournaments a player must attend to be included in stats. Default is 25%." />
+                  </span>
+                  <input
+                    type="number"
+                    step="5"
+                    min="0"
+                    max="100"
+                    placeholder="(Default: 25%)"
+                    value={attendanceRatio === "" ? "" : String(Number(attendanceRatio) * 100)}
+                    onChange={e => {
+                      // Convert percent input to ratio for state
+                      const val = e.target.value;
+                      if (val === "") {
+                        setAttendanceRatio("");
+                      } else {
+                        const num = Math.max(0, Math.min(100, Number(val)));
+                        setAttendanceRatio((num / 100).toString());
+                      }
+                    }}
+                    className="border rounded px-3 py-2 text-sm w-full h-10"
+                  />
+                </div>
+              </div>
+              {/* Start Date + End Date */}
+              <div className="flex flex-1 flex-row gap-2">
+                <div className="flex flex-col w-1/2">
+                  <span className="text-xs font-medium mb-1 flex items-center">
+                    Start Date
+                    <InfoPopover text="Only tournaments starting on or after this date will be included." />
+                  </span>
+                  <input
+                    type="date"
+                    placeholder="Start Date"
+                    value={dateRange.start}
+                    onChange={e => setDateRange({ ...dateRange, start: e.target.value })}
+                    className="border rounded px-3 py-2 text-sm w-full h-10"
+                  />
+                </div>
+                <div className="flex flex-col w-1/2">
+                  <span className="text-xs font-medium mb-1 flex items-center">
+                    End Date
+                    <InfoPopover text="Only tournaments ending on or before this date will be included." />
+                  </span>
+                  <input
+                    type="date"
+                    placeholder="End Date"
+                    value={dateRange.end}
+                    onChange={e => setDateRange({ ...dateRange, end: e.target.value })}
+                    className="border rounded px-3 py-2 text-sm w-full h-10"
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
+      </div>
+      <div className="w-full flex justify-center mt-2">
+        <Button
+          onClick={fetchData}
+          disabled={isLoading || !dateRange.start || !dateRange.end}
+          className="w-full md:w-auto"
+        >
+          {isLoading ? (
+            <>
+              <RefreshCw className="mr-2 h-4 w-4 animate-spin" /> Loading...
+            </>
+          ) : (
+            "Update Data"
+          )}
+        </Button>
       </div>
 
       {/* Loading Spinner */}
@@ -164,7 +307,14 @@ export function TournamentDashboard() {
         <Alert variant="destructive">
           <AlertCircle className="h-4 w-4" />
           <AlertTitle>Error</AlertTitle>
-          <AlertDescription>{error}</AlertDescription>
+          <AlertDescription>
+            {error}
+            {error.toLowerCase().includes("rate limit") && (
+              <div className="mt-2 text-xs text-muted-foreground">
+                The API is currently overloaded. Please wait a minute and try again. If this happens repeatedly, try narrowing your date range or reducing the number of series.
+              </div>
+            )}
+          </AlertDescription>
         </Alert>
       )}
 
@@ -185,13 +335,13 @@ export function TournamentDashboard() {
           <StatsCards stats={tournamentData.summary} />
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <TopPerformersTable players={tournamentData.topPerformers} filterName={playerName} />
-            <RisingStarsTable players={tournamentData.risingStars} filterName={playerName} />
+            <TopPerformersTable players={tournamentData.topPerformers} filterName={activePlayerName} />
+            <RisingStarsTable players={tournamentData.risingStars} filterName={activePlayerName} />
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <SeedPerformanceTable players={tournamentData.seedOutperformers} filterName={playerName} />
-            <ConsistencyTable players={tournamentData.consistentPlayers} filterName={playerName} />
+            <SeedPerformanceTable players={tournamentData.seedOutperformers} filterName={activePlayerName} />
+            <ConsistencyTable players={tournamentData.consistentPlayers} filterName={activePlayerName} />
           </div>
 
           {/* Tournament Names */}

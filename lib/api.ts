@@ -67,7 +67,11 @@ const detailQuery = `
   }
 `;
 
-export async function fetchberkeleyTournaments(startDate: string, endDate: string, primaryContact: string, tournamentSeriesName: string) {
+export async function fetchberkeleyTournaments(
+  startDate: string,
+  endDate: string,
+  seriesInputs: { tournamentSeriesName: string; primaryContact: string }[]
+) {
   const { data: fileData, error } = await supabase
     .storage
     .from("tournament-cache")
@@ -80,28 +84,44 @@ export async function fetchberkeleyTournaments(startDate: string, endDate: strin
 
   const text = await fileData.text();
   const allTournaments: any[] = JSON.parse(text).filter(t => {
-  const start = new Date(startDate);
-  const end = new Date(endDate);
-  const tournamentDate = new Date(t.startAt * 1000); // convert Unix to Date
-  return tournamentDate >= start && tournamentDate <= end;
-});
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    const tournamentDate = new Date(t.startAt * 1000); // convert Unix to Date
+    return tournamentDate >= start && tournamentDate <= end;
+  });
+
   const detailedTournaments = [];
 
   for (const tournament of allTournaments) {
-    let shouldQuery = true;
+    let shouldQuery = false;
 
-    if (tournamentSeriesName && primaryContact) {
-      if (tournament.name?.toLowerCase().includes(tournamentSeriesName.toLowerCase())) {
-        shouldQuery = true;
-      } else if (tournament.primaryContact?.toLowerCase().includes(primaryContact.toLowerCase())) {
-        shouldQuery = true;
-      } else {
-        shouldQuery = false;
+    // If no seriesInputs, skip
+    if (!seriesInputs || seriesInputs.length === 0) continue;
+
+    // Check if tournament matches ANY of the seriesInputs
+    for (const input of seriesInputs) {
+      const tournamentSeriesName = input.tournamentSeriesName?.trim();
+      const primaryContact = input.primaryContact?.trim();
+
+      if (tournamentSeriesName && primaryContact) {
+        if (
+          (tournament.name?.toLowerCase().includes(tournamentSeriesName.toLowerCase())) ||
+          (tournament.primaryContact?.toLowerCase().includes(primaryContact.toLowerCase()))
+        ) {
+          shouldQuery = true;
+          break;
+        }
+      } else if (tournamentSeriesName) {
+        if (tournament.name?.toLowerCase().includes(tournamentSeriesName.toLowerCase())) {
+          shouldQuery = true;
+          break;
+        }
+      } else if (primaryContact) {
+        if (tournament.primaryContact?.toLowerCase().includes(primaryContact.toLowerCase())) {
+          shouldQuery = true;
+          break;
+        }
       }
-    } else if (tournamentSeriesName) {
-      shouldQuery = tournament.name?.toLowerCase().includes(tournamentSeriesName.toLowerCase());
-    } else if (primaryContact) {
-      shouldQuery = tournament.primaryContact?.toLowerCase().includes(primaryContact.toLowerCase());
     }
 
     if (!shouldQuery) continue;
