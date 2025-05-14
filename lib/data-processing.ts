@@ -478,13 +478,15 @@ export function processberkeleyData(data: { tournaments: any }, playerName?: str
       averageEntrants: tournaments.length > 0 ? Math.round(totalEntrants / tournaments.length) : 0,
       upsetRate: matchCount > 0 ? `${Math.round((upsetCount / matchCount) * 100)}%` : "0%",
     }
-    // get a list of all tournament names
+    // get a list of all tournament names and slugs
     const tournamentNames = tournaments.map((tournament: { name: string }) => tournament.name);
+    const tournamentSlugs = tournaments.map((tournament: { slug: string }) => tournament.slug);
 
     let filteredTournamentNames = tournamentNames;
+    let filteredTournamentSlugs = tournamentSlugs;
     if (playerName && playerName.trim()) {
       const lowerPlayerName = playerName.trim().toLowerCase();
-      filteredTournamentNames = tournaments
+      const filteredTournaments = tournaments
         .filter(tournament =>
           tournament.events.some(event =>
             event.standings?.nodes?.some(
@@ -495,8 +497,9 @@ export function processberkeleyData(data: { tournaments: any }, playerName?: str
                 )
             )
           )
-        )
-        .map((tournament: { name: string }) => tournament.name);
+        );
+      filteredTournamentNames = filteredTournaments.map((t: { name: string }) => t.name);
+      filteredTournamentSlugs = filteredTournaments.map((t: { slug: string }) => t.slug);
     }
 
     console.log("Data processing complete")
@@ -508,7 +511,8 @@ export function processberkeleyData(data: { tournaments: any }, playerName?: str
       consistentPlayers,
       performanceData,
       risingStars,
-      tournamentNames: filteredTournamentNames
+      tournamentNames: filteredTournamentNames,
+      tournamentSlugs: filteredTournamentSlugs,
     }
   } catch (error) {
     console.error("Error processing tournament data:", error)
@@ -525,7 +529,8 @@ export function processberkeleyData(data: { tournaments: any }, playerName?: str
       consistentPlayers: [],
       performanceData: [],
       risingStars: [],
-      tournamentNames: []
+      tournamentNames: [],
+      tournamentSlugs: [],
     }
   }
 }

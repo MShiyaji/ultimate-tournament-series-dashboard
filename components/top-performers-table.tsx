@@ -2,6 +2,35 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Trophy } from "lucide-react"
+function InfoPopover({ text }: { text: string }) {
+  const [open, setOpen] = useState(false)
+  return (
+    <span
+      className="relative inline-block ml-1 align-middle"
+      onMouseEnter={() => setOpen(true)}
+      onMouseLeave={() => setOpen(false)}
+      tabIndex={0}
+    >
+      <button
+        type="button"
+        aria-label="Info"
+        className="text-gray-400 hover:text-gray-600 focus:outline-none p-0 m-0"
+        tabIndex={-1}
+        style={{ lineHeight: 0 }}
+      >
+        <Info className="inline h-3 w-3" />
+      </button>
+      {open && (
+        <div
+          className="absolute z-20 left-full top-0 -translate-y-full ml-2 w-72 rounded-md bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-700 shadow-lg p-3 text-xs text-gray-800 dark:text-gray-200"
+          style={{ minWidth: "16rem", maxWidth: "20rem", whiteSpace: "normal" }}
+        >
+          {text}
+        </div>
+      )}
+    </span>
+  )
+}
 
 export function TopPerformersTable({ players, filterName }) {
   // Mock data for demonstration

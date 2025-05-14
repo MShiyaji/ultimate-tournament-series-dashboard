@@ -18,7 +18,7 @@ function generateCacheKey({
 }: {
   startDate: string;
   endDate: string;
-  seriesInputs: { tournamentSeriesName: string; primaryContact: string }[];
+  seriesInputs: { tournamentSeriesName: string; primaryContact: string;}[];
   playerName: string;
 }): string {
   // Use a stable stringification for the array
