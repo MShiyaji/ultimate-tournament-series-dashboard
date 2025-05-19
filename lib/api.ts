@@ -13,7 +13,7 @@ function delay(ms: number) {
 }
 
 // Adaptive delay helper
-function createAdaptiveDelay(initial = 300, min = 200, max = 5000, step = 100) {
+function createAdaptiveDelay(initial = 0, min = 0, max = 5000, step = 100) {
   let delayMs = initial;
   return {
     async wait() {
