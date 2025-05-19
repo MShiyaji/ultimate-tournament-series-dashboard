@@ -83,6 +83,9 @@ export function TournamentDashboard() {
   const [isExporting, setIsExporting] = useState(false);
   const [playerSuggestions, setPlayerSuggestions] = useState<string[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
+  const [cancelRequested, setCancelRequested] = useState(false);
+
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   const SEASON_PRESETS = [
     { label: "Spring", value: "spring", start: "03-01", end: "05-31" },
@@ -137,6 +140,11 @@ export function TournamentDashboard() {
     setIsLoading(true);
     setError("");
     setNoData(false);
+    setCancelRequested(false);
+
+    // Create a new AbortController for this request
+    const abortController = new AbortController();
+    abortControllerRef.current = abortController;
 
     try {
       setActivePlayerName(playerName);
@@ -151,6 +159,7 @@ export function TournamentDashboard() {
           playerName: playerName.trim(),
           attendanceRatio: attendanceRatio === "" ? 0.25 : Number(attendanceRatio),
         }),
+        signal: abortController.signal,
       });
 
       if (!response.ok) {
@@ -202,8 +211,12 @@ export function TournamentDashboard() {
       }
 
     } catch (err) {
-      console.error("Error fetching tournament data:", err);
-      setError("Failed to load tournament data: " + (err.message || "Unknown error"));
+      if (err.name === "AbortError" || err.message === "Update cancelled by user") {
+        setError("Update cancelled.");
+      } else {
+        console.error("Error fetching tournament data:", err);
+        setError("Failed to load tournament data: " + (err.message || "Unknown error"));
+      }
     } finally {
       setIsLoading(false);
     }
@@ -462,6 +475,20 @@ export function TournamentDashboard() {
               "Update Data"
             )}
           </Button>
+          {isLoading && (
+            <button
+              onClick={() => {
+                setCancelRequested(true);
+                if (abortControllerRef.current) {
+                  abortControllerRef.current.abort();
+                }
+              }}
+              className="px-4 py-2 rounded bg-red-600 text-white font-semibold shadow hover:bg-red-700 transition w-full md:w-auto"
+              style={{ marginLeft: "0.5rem" }}
+            >
+              Cancel Update
+            </button>
+          )}
           {showDownload && (
             <button
               onClick={handleDownloadJPG}

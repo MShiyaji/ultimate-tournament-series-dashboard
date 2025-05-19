@@ -12,30 +12,50 @@ function delay(ms: number) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-async function fetchFromAPI(query: string, variables: Record<string, any>) {
-  const response = await fetch(API_URL, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${process.env.STARTGG_API_KEY}`,
-    },
-    body: JSON.stringify({ query, variables }),
-  });
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`API request failed with status ${response.status}: ${errorText}`);
-  }
-
-  const data = await response.json();
-  if (data.errors) throw new Error(data.errors.map((e: any) => e.message).join(", "));
-
-  return data.data;
+// API key rotation
+const STARTGG_API_KEYS = (process.env.STARTGG_API_KEYS || "").split(",").map(k => k.trim()).filter(Boolean);
+let apiKeyIndex = 0;
+function getNextApiKey() {
+  const key = STARTGG_API_KEYS[apiKeyIndex % STARTGG_API_KEYS.length];
+  apiKeyIndex++;
+  return key;
 }
 
-// Tournament-centric query 
-const detailQuery = `
-  query TournamentDetails($tournamentId: ID!) {
+async function fetchFromAPI(query: string, variables: Record<string, any>, retries = 3): Promise<any> {
+  let lastError;
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    const apiKey = getNextApiKey();
+    const response = await fetch(API_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({ query, variables }),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      // If rate limit, wait and retry with next key
+      if (response.status === 429) {
+        console.warn(`⚠️ Rate limit hit (attempt ${attempt + 1}/${retries + 1}). Waiting 60 seconds before retry...`);
+        await delay(60000);
+        lastError = new Error(`API request failed with status ${response.status}: ${errorText}`);
+        continue;
+      }
+      throw new Error(`API request failed with status ${response.status}: ${errorText}`);
+    }
+
+    const data = await response.json();
+    if (data.errors) throw new Error(data.errors.map((e: any) => e.message).join(", "));
+    return data.data;
+  }
+  throw lastError || new Error("API request failed after retries");
+}
+
+// Query for phase groups (without sets)
+const phaseGroupsQuery = `
+  query TournamentPhaseGroups($tournamentId: ID!) {
     tournament(id: $tournamentId) {
       id
       name
@@ -48,9 +68,31 @@ const detailQuery = `
         name
         numEntrants
         videogame { id }
-        standings(query: { perPage: 64 }) {
-          nodes {
-            placement
+        phases {
+          id
+          name
+          phaseGroups {
+            nodes {
+              id
+            }
+          }
+        }
+      }
+    }
+  }
+`;
+
+// Query for sets in a phase group (paginated)
+const setsQuery = `
+  query PhaseGroupSets($phaseGroupId: ID!, $page: Int!) {
+    phaseGroup(id: $phaseGroupId) {
+      id
+      sets(perPage: 25, page: $page) {
+        nodes {
+          id
+          round
+          winnerId
+          slots {
             entrant {
               id
               name
@@ -64,31 +106,30 @@ const detailQuery = `
             }
           }
         }
-        phases {
-          id
-          name
-          phaseGroups {
-            nodes {
-              id
-              sets(perPage: 50, page: 1) {
-                nodes {
-                  id
-                  round
-                  winnerId
-                  slots {
-                    entrant {
-                      id
-                      name
-                      initialSeedNum
-                      participants {
-                        player {
-                          id
-                          gamerTag
-                        }
-                      }
-                    }
-                  }
-                }
+        pageInfo {
+          totalPages
+        }
+      }
+    }
+  }
+`;
+
+// Query for event standings
+const eventStandingsQuery = `
+  query EventStandings($eventId: ID!) {
+    event(id: $eventId) {
+      id
+      standings(query: { perPage: 128 }) {
+        nodes {
+          placement
+          entrant {
+            id
+            name
+            initialSeedNum
+            participants {
+              player {
+                id
+                gamerTag
               }
             }
           }
@@ -97,20 +138,6 @@ const detailQuery = `
     }
   }
 `;
-
-async function fetchAllSetsFromTournamentData(tournamentData) {
-  const allSets = [];
-  for (const event of tournamentData.events || []) {
-    for (const phase of event.phases || []) {
-      for (const group of (phase.phaseGroups?.nodes || [])) {
-        for (const set of (group.sets?.nodes || [])) {
-          allSets.push(set);
-        }
-      }
-    }
-  }
-  return allSets;
-}
 
 export async function fetchberkeleyTournaments(
   startDate: string,
@@ -134,8 +161,6 @@ export async function fetchberkeleyTournaments(
     const text = await fileData.text();
     allTournaments = JSON.parse(text);
     console.log(`📊 Total tournaments in cache: ${allTournaments.length}`);
-    
-    // Check format of first tournament to verify structure
     if (allTournaments.length > 0) {
       console.log("Sample tournament structure:", JSON.stringify(allTournaments[0], null, 2));
     }
@@ -155,53 +180,34 @@ export async function fetchberkeleyTournaments(
     const tournamentDate = new Date(t.startAt * 1000);
     return tournamentDate >= start && tournamentDate <= end;
   });
-  
-  console.log(`📅 After date filter (${startDate} to ${endDate}): ${dateFilteredTournaments.length} tournaments`);
-  console.log(`📆 Date range: ${start.toISOString()} to ${end.toISOString()}`);
-  
-  if (dateFilteredTournaments.length === 0 && allTournaments.length > 0) {
-    // Log a sample of dates to debug
-    console.log("Sample tournament dates:");
-    allTournaments.slice(0, 5).forEach(t => {
-      console.log(`- ${t.name}: ${new Date(t.startAt * 1000).toISOString()} (unix: ${t.startAt})`);
-    });
-  }
-  
+
   allTournaments = dateFilteredTournaments;
 
   // Series input filtering
-  console.log(`🔍 Series inputs:`, seriesInputs);
-  
   const detailedTournaments = [];
   let seriesMatchCount = 0;
 
   for (const tournament of allTournaments) {
     let shouldQuery = false;
 
-    // If no seriesInputs, skip
-    if (!seriesInputs || seriesInputs.length === 0) {
-      console.log("❌ No series inputs provided, skipping all tournaments");
-      continue;
-    }
+    if (!seriesInputs || seriesInputs.length === 0) continue;
 
-    // Check if tournament matches ANY of the seriesInputs
     for (const input of seriesInputs) {
       const tournamentSeriesName = input.tournamentSeriesName?.trim();
       const primaryContact = input.primaryContact?.trim();
 
       let nameMatch = false;
       let contactMatch = false;
-      
+
       if (tournamentSeriesName && tournament.name) {
         nameMatch = tournament.name.toLowerCase().includes(tournamentSeriesName.toLowerCase());
       }
-      
+
       if (primaryContact && tournament.primaryContact) {
         contactMatch = tournament.primaryContact.toLowerCase().includes(primaryContact.toLowerCase());
       }
 
       if ((tournamentSeriesName && nameMatch) || (primaryContact && contactMatch)) {
-        console.log(`✅ Match found for "${tournament.name}" (series: "${tournamentSeriesName}", contact: "${primaryContact}")`);
         shouldQuery = true;
         seriesMatchCount++;
         break;
@@ -212,32 +218,55 @@ export async function fetchberkeleyTournaments(
 
     try {
       await delay(500);
-      const detailedData = await fetchFromAPI(detailQuery, { tournamentId: tournament.id });
-      const detailed = detailedData?.tournament;
 
-      if (!detailed) continue;
+      // 1. Fetch phase groups for this tournament
+      const phaseGroupsData = await fetchFromAPI(phaseGroupsQuery, { tournamentId: tournament.id });
+      const tournamentDetail = phaseGroupsData?.tournament;
+      if (!tournamentDetail) continue;
 
-      const singlesEvents = detailed.events.filter((event: { name: string }) =>
+      // Only process singles events
+      const singlesEvents = (tournamentDetail.events || []).filter((event: { name: string }) =>
         event.name.toLowerCase().includes("singles")
       );
 
+      // 2. For each event, fetch standings and sets for all phase groups (paginated)
+      for (const event of singlesEvents) {
+        // Fetch standings for this event
+        const standingsData = await fetchFromAPI(eventStandingsQuery, { eventId: event.id });
+        event.standings = standingsData?.event?.standings || { nodes: [] };
+
+        // Fetch sets for each phase group
+        for (const phase of event.phases || []) {
+          for (const group of (phase.phaseGroups?.nodes || [])) {
+            let allSets = [];
+            let page = 1;
+            let totalPages = 1;
+            do {
+              await delay(300); // avoid rate limits
+              const setsData = await fetchFromAPI(setsQuery, { phaseGroupId: group.id, page });
+              const sets = setsData?.phaseGroup?.sets?.nodes || [];
+              totalPages = setsData?.phaseGroup?.sets?.pageInfo?.totalPages || 1;
+              allSets = allSets.concat(sets);
+              page++;
+            } while (page <= totalPages);
+
+            // Attach sets to the group
+            group.sets = { nodes: allSets };
+          }
+        }
+      }
+
+      // 3. If playerName is defined, filter sets for this player
       let playerSetHistory = null;
-      // If playerName is defined, filter sets for this player from the already-fetched detailQuery data
       if (playerName) {
         const lowerPlayerName = playerName.trim().toLowerCase();
         const filteredEvents = [];
 
-        // Only process events with "singles" in the name
-        const events = (detailed.events || []).filter(
-          (event: any) => event.name.toLowerCase().includes("singles")
-        );
-
-        for (const event of events) {
+        for (const event of singlesEvents) {
           const filteredPhases = [];
           for (const phase of event.phases || []) {
             const filteredPhaseGroups = [];
             for (const group of (phase.phaseGroups?.nodes || [])) {
-              // Only keep sets where the player participated
               const filteredSets = (group.sets?.nodes || []).filter(set =>
                 set.slots?.some(slot =>
                   slot.entrant?.participants?.some(
@@ -246,7 +275,6 @@ export async function fetchberkeleyTournaments(
                   )
                 )
               );
-
               if (filteredSets.length > 0) {
                 filteredPhaseGroups.push({
                   ...group,
@@ -271,7 +299,7 @@ export async function fetchberkeleyTournaments(
 
         if (filteredEvents.length > 0) {
           playerSetHistory = {
-            ...detailed,
+            ...tournamentDetail,
             events: filteredEvents
           };
         } else {
@@ -281,13 +309,13 @@ export async function fetchberkeleyTournaments(
 
       if (singlesEvents.length > 0) {
         detailedTournaments.push({
-          ...detailed,
+          ...tournamentDetail,
           events: singlesEvents,
           playerSetHistory,
         });
-        console.log(`✅ Added tournament with ${singlesEvents.length} singles events: ${detailed.name}`);
+        console.log(`✅ Added tournament with ${singlesEvents.length} singles events: ${tournamentDetail.name}`);
       } else {
-        console.log(`❌ No singles events found for: ${detailed.name}`);
+        console.log(`❌ No singles events found for: ${tournamentDetail.name}`);
       }
     } catch (error) {
       console.error(`Error fetching details for tournament ${tournament.id}:`, error);
@@ -297,5 +325,6 @@ export async function fetchberkeleyTournaments(
   console.log(`🔍 Tournaments matching series criteria: ${seriesMatchCount}`);
   console.log(`🏆 Final detailed tournaments found: ${detailedTournaments.length}`);
 
+  // Return in the format expected by route.ts and data-processing.ts
   return { tournaments: { nodes: detailedTournaments } };
 }
