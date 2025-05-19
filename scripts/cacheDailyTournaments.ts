@@ -1,15 +1,32 @@
 // scripts/cacheDailyTournaments.ts
 import { createClient } from "@supabase/supabase-js";
 import { addDays } from "date-fns";
+import * as dotenv from "dotenv";
+import { S3Client, GetObjectCommand, PutObjectCommand } from "@aws-sdk/client-s3";
+dotenv.config({ path: ".env" });
 
 const API_URL = "https://api.start.gg/gql/alpha";
-import * as dotenv from "dotenv";
-dotenv.config({ path: ".env" });
 
 const supabase = createClient(
   process.env.SUPABASE_URL!,
   process.env.SUPABASE_KEY!
 );
+
+const STARTGG_API_KEYS = (process.env.STARTGG_API_KEYS || process.env.STARTGG_API_KEY || "")
+  .split(",")
+  .map(k => k.trim())
+  .filter(Boolean);
+
+const s3 = new S3Client({
+  region: "us-east-1", // or your region
+  credentials: {
+    accessKeyId: process.env.AWS_ACCESS_KEY_ID!,
+    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY!,
+  },
+});
+
+const BUCKET_NAME = "ultimate-tournament-dashboard";
+const CACHE_KEY = "basic-cache.json";
 
 const basicQuery = `
   query BasicTournamentInfo($startTimestamp: Timestamp!, $endTimestamp: Timestamp!, $page: Int!) {
@@ -35,16 +52,91 @@ const basicQuery = `
   }
 `;
 
+const phaseGroupsAndStandingsQuery = `
+  query TournamentPhaseGroupsAndStandings($tournamentId: ID!) {
+    tournament(id: $tournamentId) {
+      id
+      name
+      slug
+      startAt
+      numAttendees
+      primaryContact
+      events(filter: { videogameId: 1386 }) {
+        id
+        name
+        numEntrants
+        videogame { id }
+        standings(query: { perPage: 128 }) {
+          nodes {
+            placement
+            entrant {
+              id
+              name
+              initialSeedNum
+              participants {
+                player {
+                  id
+                  gamerTag
+                }
+              }
+            }
+          }
+        }
+        phases {
+          id
+          name
+          phaseGroups {
+            nodes {
+              id
+            }
+          }
+        }
+      }
+    }
+  }
+`;
+
+const setsQuery = `
+  query PhaseGroupSets($phaseGroupId: ID!, $page: Int!) {
+    phaseGroup(id: $phaseGroupId) {
+      id
+      sets(perPage: 25, page: $page) {
+        nodes {
+          id
+          round
+          winnerId
+          slots {
+            entrant {
+              id
+              name
+              initialSeedNum
+              participants {
+                player {
+                  id
+                  gamerTag
+                }
+              }
+            }
+          }
+        }
+        pageInfo {
+          totalPages
+        }
+      }
+    }
+  }
+`;
+
 function delay(ms: number) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-async function fetchFromAPI(query: string, variables: Record<string, any>) {
+async function fetchFromAPI(query: string, variables: Record<string, any>, apiKey: string) {
   const response = await fetch(API_URL, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      Authorization: `Bearer ${process.env.STARTGG_API_KEY}`,
+      Authorization: `Bearer ${apiKey}`,
     },
     body: JSON.stringify({ query, variables }),
   });
@@ -60,26 +152,47 @@ async function fetchFromAPI(query: string, variables: Record<string, any>) {
   return data.data;
 }
 
-export async function fetchCachedBasicTournaments(): Promise<any[]> {
-  const { data, error } = await supabase
-    .storage
-    .from("tournament-cache")
-    .download("basic-cache.json");
-
-  if (error) {
-    console.error("❌ Failed to read from Supabase cache:", error);
-    throw new Error("Failed to load cached tournaments");
-  }
-
-  const text = await data.text();
+// Download
+async function downloadCache() {
+  const command = new GetObjectCommand({ Bucket: BUCKET_NAME, Key: CACHE_KEY });
+  const response = await s3.send(command);
+  const text = await response.Body.transformToString();
   return JSON.parse(text);
 }
 
+// Upload
+async function uploadCache(data: any) {
+  const command = new PutObjectCommand({
+    Bucket: BUCKET_NAME,
+    Key: CACHE_KEY,
+    Body: JSON.stringify(data),
+    ContentType: "application/json",
+  });
+  await s3.send(command);
+}
+
+export async function fetchCachedBasicTournaments(): Promise<any[]> {
+  try {
+    return await downloadCache();
+  } catch (error) {
+    console.error("❌ Failed to read from S3 cache:", error);
+    throw new Error("Failed to load cached tournaments");
+  }
+}
+
+// Helper to rotate API keys
+function getApiKeyRotator(keys: string[]) {
+  let idx = 0;
+  return () => {
+    const key = keys[idx];
+    idx = (idx + 1) % keys.length;
+    return key;
+  };
+}
+
 async function cacheBasicTournaments() {
-  // Check if cache already exists
   let existingTournaments: any[] = [];
   let startFromScratch = false;
-  
   try {
     existingTournaments = await fetchCachedBasicTournaments();
     console.log(`📊 Found existing cache with ${existingTournaments.length} tournaments`);
@@ -87,82 +200,88 @@ async function cacheBasicTournaments() {
     console.log("ℹ️ No existing cache found or error accessing it. Creating from scratch.");
     startFromScratch = true;
   }
-  
-  // Set date range based on whether cache exists
+
   let startDate: Date;
-  const endDate = new Date(); // today
-  
+  const endDate = new Date();
   if (startFromScratch) {
-    // If starting from scratch, get all tournaments since 2018
     startDate = new Date("2018-01-01");
     console.log("🔄 Building complete cache from 2018 to present");
   } else {
-    // If cache exists, only get yesterday's tournaments
     startDate = new Date();
-    startDate.setDate(startDate.getDate() - 1); // yesterday
-    startDate.setHours(0, 0, 0, 0); // start of yesterday
-    
+    startDate.setDate(startDate.getDate() - 1);
+    startDate.setHours(0, 0, 0, 0);
     console.log(`🔄 Updating cache with tournaments from ${startDate.toLocaleDateString()}`);
   }
-  
-  const chunkSizeDays = startFromScratch ? 21 : 1; // Smaller chunk for daily updates
-  
-  // Create a Set of existing tournament IDs for deduplication
+
+  const chunkSizeDays = startFromScratch ? 21 : 1;
   const existingIds = new Set(existingTournaments.map(t => t.id));
   const newTournaments: any[] = [];
-  let currentStart = startDate;
 
+  // 1. Build all date chunks first
+  let dateChunks: { start: Date; end: Date }[] = [];
+  let currentStart = startDate;
   while (currentStart < endDate) {
     const currentEnd = addDays(currentStart, chunkSizeDays);
-    if (currentEnd > endDate) {
-      // Don't go beyond today
-      currentEnd.setTime(endDate.getTime());
-    }
-    
-    console.log(`📅 Processing tournaments from ${currentStart.toLocaleDateString()} to ${currentEnd.toLocaleDateString()}`);
-    
-    const chunkStartTimestamp = Math.floor(currentStart.getTime() / 1000);
-    const chunkEndTimestamp = Math.floor(currentEnd.getTime() / 1000);
-
-    let page = 1;
-    let totalPages = 1;
-
-    do {
-      await delay(1000);
-      try {
-        const result = await fetchFromAPI(basicQuery, {
-          startTimestamp: chunkStartTimestamp,
-          endTimestamp: chunkEndTimestamp,
-          page,
-        });
-
-        const tournaments = result?.tournaments?.nodes || [];
-        totalPages = result?.tournaments?.pageInfo?.totalPages || 1;
-
-        // Add only tournaments that don't already exist in the cache
-        for (const tournament of tournaments) {
-          if (!existingIds.has(tournament.id)) {
-            newTournaments.push(tournament);
-            existingIds.add(tournament.id); // Track this ID to avoid duplicates
-          }
-        }
-        
-        console.log(`✅ Page ${page}/${totalPages}: Found ${tournaments.length} tournaments, ${newTournaments.length} new overall`);
-        page++;
-      } catch (error) {
-        console.error(`❌ Error fetching page ${page}:`, error);
-        // Wait a bit longer before retry on error
-        await delay(5000);
-        // If we keep failing, move on after 3 attempts
-        if (page > 3) {
-          console.log("⚠️ Skipping to next chunk after multiple failures");
-          break;
-        }
-      }
-    } while (page <= totalPages);
-
-    currentStart = currentEnd;
+    dateChunks.push({
+      start: new Date(currentStart),
+      end: currentEnd > endDate ? new Date(endDate) : new Date(currentEnd),
+    });
+    currentStart = currentEnd > endDate ? endDate : currentEnd;
   }
+
+  // 2. Split dateChunks among API keys
+  function chunkArray<T>(array: T[], n: number): T[][] {
+    const chunks = Array.from({ length: n }, () => []);
+    array.forEach((item, i) => {
+      chunks[i % n].push(item);
+    });
+    return chunks;
+  }
+  const dateChunkGroups = chunkArray(dateChunks, STARTGG_API_KEYS.length);
+
+  // 3. Process each group in parallel, one per API key
+  await Promise.all(
+    dateChunkGroups.map(async (chunks, idx) => {
+      const apiKey = STARTGG_API_KEYS[idx];
+      for (const { start, end } of chunks) {
+        const chunkStartTimestamp = Math.floor(start.getTime() / 1000);
+        const chunkEndTimestamp = Math.floor(end.getTime() / 1000);
+
+        let page = 1;
+        let totalPages = 1;
+        do {
+          await delay(1000);
+          try {
+            const result = await fetchFromAPI(basicQuery, {
+              startTimestamp: chunkStartTimestamp,
+              endTimestamp: chunkEndTimestamp,
+              page,
+            }, apiKey);
+
+            const tournaments = result?.tournaments?.nodes || [];
+            totalPages = result?.tournaments?.pageInfo?.totalPages || 1;
+
+            for (const tournament of tournaments) {
+              if (!existingIds.has(tournament.id)) {
+                newTournaments.push(tournament);
+                existingIds.add(tournament.id);
+              }
+            }
+
+            console.log(`✅ [Key ${idx + 1}] Page ${page}/${totalPages}: Found ${tournaments.length} tournaments, ${newTournaments.length} new overall`);
+            page++;
+          } catch (error) {
+            console.error(`❌ [Key ${idx + 1}] Error fetching page ${page}:`, error);
+            await delay(5000);
+            if (page > 3) {
+              console.log("⚠️ Skipping to next chunk after multiple failures");
+              break;
+            }
+          }
+        } while (page <= totalPages);
+      }
+    })
+  );
 
   if (newTournaments.length === 0) {
     console.log("ℹ️ No new tournaments found. Cache is up to date.");
@@ -171,31 +290,72 @@ async function cacheBasicTournaments() {
 
   console.log(`📦 Found ${newTournaments.length} new tournaments. Updating cache...`);
 
-  // Merge existing and new tournaments
-  const mergedTournaments = [...existingTournaments, ...newTournaments];
-  
-  try {
-    const { data, error } = await supabase
-      .storage
-      .from("tournament-cache")
-      .upload("basic-cache.json", JSON.stringify(mergedTournaments), {
-        upsert: true,
-        contentType: "application/json",
-      });
+  // 1. Save the basicQuery results
+  const basicTournaments = [...existingTournaments, ...newTournaments];
 
-    if (error) {
-      console.error("❌ Upload failed:", error);
-      process.exit(1);
+  // 2. For each tournament, fetch full details and sets with API key rotation
+  const detailedTournaments: any[] = [];
+  const getNextApiKey = getApiKeyRotator(STARTGG_API_KEYS);
+
+  for (const tournament of basicTournaments) {
+    try {
+      // Fetch tournament details (phases, phaseGroups, standings)
+      const apiKeyForDetails = getNextApiKey();
+      const data = await fetchFromAPI(
+        phaseGroupsAndStandingsQuery,
+        { tournamentId: tournament.id },
+        apiKeyForDetails
+      );
+      const tournamentDetail = data?.tournament;
+      if (!tournamentDetail) continue;
+
+      // For each event, phase, and phaseGroup, fetch all sets
+      for (const event of tournamentDetail.events || []) {
+        for (const phase of event.phases || []) {
+          for (const group of (phase.phaseGroups?.nodes || [])) {
+            let allSets: any[] = [];
+            let page = 1;
+            let totalPages = 1;
+            do {
+              await delay(500); // avoid rate limits
+              const apiKeyForSets = getNextApiKey();
+              const setsData = await fetchFromAPI(
+                setsQuery,
+                { phaseGroupId: group.id, page },
+                apiKeyForSets
+              );
+              const sets = setsData?.phaseGroup?.sets?.nodes || [];
+              totalPages = setsData?.phaseGroup?.sets?.pageInfo?.totalPages || 1;
+              allSets = allSets.concat(sets);
+              page++;
+            } while (page <= totalPages);
+
+            group.sets = { nodes: allSets };
+          }
+        }
+      }
+
+      detailedTournaments.push(tournamentDetail);
+    } catch (error) {
+      console.error(`Failed to fetch details for tournament ${tournament.id}:`, error);
     }
+  }
 
-    console.log(`✅ Cache updated! Now contains ${mergedTournaments.length} tournaments`);
+  // 3. Save both basic and detailed tournaments to S3
+  const cacheData = {
+    basic: basicTournaments,
+    tournaments: { nodes: detailedTournaments }
+  };
+
+  try {
+    await uploadCache(cacheData);
+    console.log(`✅ Cache updated! Now contains ${basicTournaments.length} basic and ${detailedTournaments.length} detailed tournaments`);
   } catch (uploadError) {
-    console.error("❌ Failed to upload to Supabase:", uploadError);
-    
-    // Fallback: Save to local file if Supabase fails
+    console.error("❌ Failed to upload to S3:", uploadError);
+
     try {
       const fs = require('fs');
-      fs.writeFileSync('./tournament-cache-backup.json', JSON.stringify(mergedTournaments));
+      fs.writeFileSync('./tournament-cache-backup.json', JSON.stringify(cacheData));
       console.log("⚠️ Saved to local backup file instead: ./tournament-cache-backup.json");
     } catch (fsError) {
       console.error("❌ Even local backup failed:", fsError);
