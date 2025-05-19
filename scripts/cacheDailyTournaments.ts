@@ -1,5 +1,4 @@
 // scripts/cacheDailyTournaments.ts
-import { createClient } from "@supabase/supabase-js";
 import { addDays } from "date-fns";
 import * as dotenv from "dotenv";
 import { S3Client, GetObjectCommand, PutObjectCommand } from "@aws-sdk/client-s3";
@@ -7,10 +6,6 @@ dotenv.config({ path: ".env" });
 
 const API_URL = "https://api.start.gg/gql/alpha";
 
-const supabase = createClient(
-  process.env.SUPABASE_URL!,
-  process.env.SUPABASE_KEY!
-);
 
 const STARTGG_API_KEYS = (process.env.STARTGG_API_KEYS || process.env.STARTGG_API_KEY || "")
   .split(",")
