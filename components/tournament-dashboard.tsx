@@ -3,7 +3,6 @@
 import { useState, useEffect, useRef } from "react"
 import html2canvas from "html2canvas"
 import { DashboardHeader } from "@/components/dashboard-header"
-import { DateRangeSelector } from "@/components/date-range-selector"
 import { StatsCards } from "@/components/stats-cards"
 import { TopPerformersTable } from "@/components/top-performers-table"
 import { SeedPerformanceTable } from "@/components/seed-performance-table"
@@ -14,6 +13,10 @@ import { RefreshCw } from "lucide-react"
 import { format, subMonths } from "date-fns"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { AlertCircle, Info } from "lucide-react"
+import { MiniTopPerformersTable } from "./mini-top-performers-table"
+import { MiniSeedPerformanceTable } from "./mini-seed-performance-table"
+import { MiniConsistencyTable } from "./mini-consistency-table"
+import { MiniRisingStarsTable } from "./mini-rising-stars-table"
 import { extractSeriesName } from "@/lib/utils"
 
 // Helper component for info popover
@@ -78,6 +81,34 @@ export function TournamentDashboard() {
     { tournamentSeriesName: "", primaryContact: "" },
   ]);
   const [isExporting, setIsExporting] = useState(false);
+  const [playerSuggestions, setPlayerSuggestions] = useState<string[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+
+  const SEASON_PRESETS = [
+    { label: "Spring", value: "spring", start: "03-01", end: "05-31" },
+    { label: "Summer", value: "summer", start: "06-01", end: "08-31" },
+    { label: "Fall", value: "fall", start: "09-01", end: "11-30" },
+    { label: "Winter", value: "winter", start: "12-01", end: "02-28" },
+  ];
+  const YEARS = Array.from({ length: 8 }, (_, i) => 2018 + i);
+
+  const [selectedSeason, setSelectedSeason] = useState("");
+  const [selectedYear, setSelectedYear] = useState("");
+
+  const handleSeasonPreset = (season, year) => {
+    if (!season || !year) return;
+    const preset = SEASON_PRESETS.find((s) => s.value === season);
+    if (!preset) return;
+    let start, end;
+    if (season === "winter") {
+      start = `${year}-12-01`;
+      end = `${parseInt(year, 10) + 1}-02-28`;
+    } else {
+      start = `${year}-${preset.start}`;
+      end = `${year}-${preset.end}`;
+    }
+    setDateRange({ start, end });
+  };
 
   const handleSeriesInputChange = (idx, field, value) => {
     setSeriesInputs(inputs =>
@@ -140,6 +171,34 @@ export function TournamentDashboard() {
         setNoData(true);
       } else {
         setTournamentData(data); 
+      }
+
+      if (
+        playerName &&
+        playerName.trim() &&
+        data?.allPlayerNames?.some(
+          n => n?.toLowerCase() === playerName.trim().toLowerCase()
+        ) &&
+        !(
+          data?.topPerformers?.some(
+            p => p.name?.toLowerCase() === playerName.trim().toLowerCase()
+          ) ||
+          data?.risingStars?.some(
+            p => p.name?.toLowerCase() === playerName.trim().toLowerCase()
+          ) ||
+          data?.seedOutperformers?.some(
+            p => p.name?.toLowerCase() === playerName.trim().toLowerCase()
+          ) ||
+          data?.consistentPlayers?.some(
+            p => p.name?.toLowerCase() === playerName.trim().toLowerCase()
+          )
+        )
+      ) {
+        setTournamentData(null);
+        setNoData(false);
+        setError("Player does not have enough tournament data. Please adjust your attendance threshold");
+        setIsLoading(false);
+        return;
       }
 
     } catch (err) {
@@ -243,15 +302,55 @@ export function TournamentDashboard() {
               <div className="flex flex-col w-1/2">
                 <span className="text-xs font-medium mb-1 flex items-center">
                   Player Tag
-                  <InfoPopover text="Filter results to only show data for a specific player tag (case-insensitive)." />
+                  <InfoPopover text="Filter results to only show data for a specific player tag (case-insensitive). Auto-complete if Series Name is inputted." />
                 </span>
-                <input
-                  type="text"
-                  placeholder="Optional: Filter by Player Tag (ex. Lui$)"
-                  value={playerName}
-                  onChange={(e) => setPlayerName(e.target.value)}
-                  className="border rounded px-3 py-2 text-sm w-full h-10"
-                />
+                <div className="relative">
+                  <input
+                    type="text"
+                    placeholder="Optional: Filter by Player Tag (ex. Lui$)"
+                    value={playerName}
+                    onChange={e => {
+                      const value = e.target.value;
+                      setPlayerName(value);
+
+                      const allPlayers = [
+                        ...(tournamentData?.topPerformers?.map(p => p.name) || []),
+                        ...(tournamentData?.risingStars?.map(p => p.name) || []),
+                        ...(tournamentData?.seedOutperformers?.map(p => p.name) || []),
+                        ...(tournamentData?.consistentPlayers?.map(p => p.name) || []),
+                      ];
+                      // Remove duplicates and filter by input
+                      const uniquePlayers = Array.from(new Set(allPlayers));
+                      const filtered = uniquePlayers.filter(name =>
+                        name?.toLowerCase().includes(value.toLowerCase()) && value.trim() !== ""
+                      );
+                      setPlayerSuggestions(filtered.slice(0, 8)); // Limit to 8 suggestions
+                      setShowSuggestions(filtered.length > 0);
+                    }}
+                    onBlur={() => setTimeout(() => setShowSuggestions(false), 100)} // Hide dropdown after click
+                    onFocus={e => {
+                      if (playerSuggestions.length > 0) setShowSuggestions(true);
+                    }}
+                    className="border rounded px-3 py-2 text-sm w-full h-10"
+                    autoComplete="off"
+                  />
+                  {showSuggestions && (
+                    <ul className="absolute z-10 bg-black border border-gray-300 rounded w-full mt-1 max-h-48 overflow-y-auto shadow">
+                      {playerSuggestions.map((suggestion, idx) => (
+                        <li
+                          key={idx}
+                          className="px-3 py-2 cursor-pointer hover:bg-gray-100"
+                          onMouseDown={() => {
+                            setPlayerName(suggestion);
+                            setShowSuggestions(false);
+                          }}
+                        >
+                          {suggestion}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
               </div>
               <div className="flex flex-col w-1/2">
                 <span className="text-xs font-medium mb-1 flex items-center">
@@ -279,33 +378,70 @@ export function TournamentDashboard() {
                 />
               </div>
             </div>
-            {/* Start Date + End Date */}
-            <div className="flex flex-1 flex-row gap-2">
-              <div className="flex flex-col w-1/2">
-                <span className="text-xs font-medium mb-1 flex items-center">
-                  Start Date
-                  <InfoPopover text="Only tournaments starting on or after this date will be included." />
-                </span>
-                <input
-                  type="date"
-                  placeholder="Start Date"
-                  value={dateRange.start}
-                  onChange={e => setDateRange({ ...dateRange, start: e.target.value })}
-                  className="border rounded px-3 py-2 text-sm w-full h-10"
-                />
+            {/* Date Range Selector */}
+            <div>
+              <div className="flex flex-1 flex-row gap-2">
+                <div className="flex flex-col w-1/2">
+                  <span className="text-xs font-medium mb-1 flex items-center">
+                    Start Date
+                    <InfoPopover text="Only tournaments starting on or after this date will be included." />
+                  </span>
+                  <input
+                    type="date"
+                    placeholder="Start Date"
+                    value={dateRange.start}
+                    onChange={e => setDateRange({ ...dateRange, start: e.target.value })}
+                    className="border rounded px-3 py-2 text-sm w-full h-10"
+                  />
+                </div>
+                <div className="flex flex-col w-1/2">
+                  <span className="text-xs font-medium mb-1 flex items-center">
+                    End Date
+                    <InfoPopover text="Only tournaments ending on or before this date will be included." />
+                  </span>
+                  <input
+                    type="date"
+                    placeholder="End Date"
+                    value={dateRange.end}
+                    onChange={e => setDateRange({ ...dateRange, end: e.target.value })}
+                    className="border rounded px-3 py-2 text-sm w-full h-10"
+                  />
+                </div>
               </div>
-              <div className="flex flex-col w-1/2">
-                <span className="text-xs font-medium mb-1 flex items-center">
-                  End Date
-                  <InfoPopover text="Only tournaments ending on or before this date will be included." />
-                </span>
-                <input
-                  type="date"
-                  placeholder="End Date"
-                  value={dateRange.end}
-                  onChange={e => setDateRange({ ...dateRange, end: e.target.value })}
-                  className="border rounded px-3 py-2 text-sm w-full h-10"
-                />
+              {/* Seasonal Presets BELOW date range selector, not in a flex row with the date inputs */}
+              <div className="flex flex-row gap-2 mt-2">
+                <div className="flex flex-col">
+                  <span className="text-xs font-medium mb-1">Season</span>
+                  <select
+                    className="border rounded px-3 py-2"
+                    value={selectedSeason}
+                    onChange={e => {
+                      setSelectedSeason(e.target.value);
+                      handleSeasonPreset(e.target.value, selectedYear);
+                    }}
+                  >
+                    <option value="">Select season</option>
+                    {SEASON_PRESETS.map(season => (
+                      <option key={season.value} value={season.value}>{season.label}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="flex flex-col">
+                  <span className="text-xs font-medium mb-1">Year</span>
+                  <select
+                    className="border rounded px-3 py-2"
+                    value={selectedYear}
+                    onChange={e => {
+                      setSelectedYear(e.target.value);
+                      handleSeasonPreset(selectedSeason, e.target.value);
+                    }}
+                  >
+                    <option value="">Select year</option>
+                    {YEARS.map(year => (
+                      <option key={year} value={year}>{year}</option>
+                    ))}
+                  </select>
+                </div>
               </div>
             </div>
           </div>
@@ -366,143 +502,82 @@ export function TournamentDashboard() {
           <Info className="h-4 w-4" />
           <AlertTitle>No Data Found</AlertTitle>
           <AlertDescription>
-            No tournaments were found in the selected date range. Try expanding your date range, or adding missing values.
+            No tournaments were found in the selected date range. Try expanding your date range or adjusting your series name.
           </AlertDescription>
         </Alert>
       )}
 
       {/* Dashboard Content */}
-      <div ref={dashboardRef}>
+      <div ref={dashboardRef} className="mt-2">
         {isExporting ? (
           // --- EXPORT LAYOUT (for JPG only) ---
           <div
-            className="bg-black flex flex-col items-center"
-            style={{
-              width: "1600px",
-              height: "900px",
-              minWidth: "1600px",
-              minHeight: "900px",
-              maxWidth: "1600px",
-              maxHeight: "900px",
-              margin: "0 auto",
-              padding: "16px" // Reduce padding
-            }}
+            className="bg-black min-h-screen p-8 flex flex-col items-center"
+            style={{ maxWidth: "1600px", minHeight: "900px", width: "100vw", height: "100vh", margin: "0 auto" }}
           >
-            {/* Title */}
-            <h1
-              className="text-2xl font-extrabold text-center mb-2 text-white tracking-wide w-full leading-tight"
-              style={{ lineHeight: 1.1 }}
-            >
-              {(() => {
-                const name = seriesInputs.find(s => s.tournamentSeriesName.trim())?.tournamentSeriesName.trim();
-                if (!name) return "Tournament Series";
-                return (
-                  name.charAt(0).toUpperCase() +
-                  name.slice(1) +
-                  " Tournament Series"
-                );
-              })()}
-            </h1>
-            {/* Filters Section as plain text, centered, with timeline */}
-            <div className="mb-2 w-full flex flex-col items-center gap-1 text-white text-xs font-medium">
-              <div className="flex flex-wrap justify-center gap-x-6 gap-y-1 w-full">
-                <div>
-                  Player Tag:
-                  <span className="inline-block min-w-[70px] ml-1 text-white align-middle">
-                    {playerName || <span className="opacity-50">________</span>}
-                  </span>
-                </div>
-                <div>
-                  Attendance Threshold (%):
-                  <span className="inline-block min-w-[30px] ml-1 text-white align-middle">
-                    {attendanceRatio === "" ? "25" : String(Number(attendanceRatio) * 100)}
-                  </span>
-                </div>
-              </div>
-              <div className="flex items-center justify-center gap-2 w-full">
-                <div>
-                  Start Date:
-                  <span className="inline-block min-w-[60px] ml-1 text-white align-middle">
-                    {dateRange.start}
-                  </span>
-                </div>
-                {/* Timeline graphic */}
-                <div className="flex items-center mx-1">
-                  <span className="block w-6 h-1 bg-gray-600 rounded-full" />
-                  <span className="block w-2 h-2 bg-gray-400 rounded-full mx-1" />
-                  <span className="block w-6 h-1 bg-gray-600 rounded-full" />
-                </div>
-                <div>
-                  End Date:
-                  <span className="inline-block min-w-[60px] ml-1 text-white align-middle">
-                    {dateRange.end}
-                  </span>
-                </div>
-              </div>
-            </div>
+            {/* Export Title */}
+            {activePlayerName && activePlayerName.trim() && (
+              <h1 className="text-3xl font-bold text-white mb-6 text-center">
+                {activePlayerName}'s{" "}
+                {seriesInputs
+                  .map((input) =>
+                    input.tournamentSeriesName
+                      ? input.tournamentSeriesName
+                          .split(" ")
+                          .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+                          .join(" ")
+                      : ""
+                  )
+                  .filter(Boolean)
+                  .join(", ")}{" "}
+                Stats
+              </h1>
+            )}
+
             {/* Stats Cards */}
             <div className="mt-0">
               <StatsCards
-                stats={tournamentData.summary}
-                colorScheme="gray-on-black"
-                compact
-                fontSize="xs"
+                stats={tournamentData.summary} playerName={activePlayerName}
               />
             </div>
-            {/* Tables: 2x2 grid, all gray/white text on black, compact */}
-            <div className="grid grid-cols-2 grid-rows-2 gap-2 w-full max-w-full" style={{ flex: 1 }}>
+            {/* Tables: 2x2 grid, all gray/white text on black */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-0 w-full max-w-5xl mx-auto">
               {/* Top Performers */}
-              <div className="bg-gray-900 rounded-lg p-2 shadow flex flex-col min-h-0">
-                <h2 className="text-base font-bold mb-1 text-center text-white">Top Performers</h2>
-                <TopPerformersTable
+              <div className="rounded-2xl p-4 ">
+                <MiniTopPerformersTable
                   players={tournamentData.topPerformers}
                   filterName={activePlayerName}
-                  colorScheme="gray-on-black"
-                  compact
-                  fontSize="xs"
                 />
               </div>
               {/* Rising Stars */}
-              <div className="bg-gray-900 rounded-lg p-2 shadow flex flex-col min-h-0">
-                <h2 className="text-base font-bold mb-1 text-center text-white">Rising Stars</h2>
-                <RisingStarsTable
+              <div className="rounded-2xl p-4 ">
+                <MiniRisingStarsTable
                   players={tournamentData.risingStars}
                   filterName={activePlayerName}
-                  colorScheme="gray-on-black"
-                  compact
-                  fontSize="xs"
                 />
               </div>
               {/* Seed Overperformers */}
-              <div className="bg-gray-900 rounded-lg p-2 shadow flex flex-col min-h-0">
-                <h2 className="text-base font-bold mb-1 text-center text-white">Seed Overperformers</h2>
-                <SeedPerformanceTable
+              <div className="rounded-2xl p-4 ">
+                <MiniSeedPerformanceTable
                   players={tournamentData.seedOutperformers}
                   filterName={activePlayerName}
-                  colorScheme="gray-on-black"
-                  compact
-                  fontSize="xs"
                 />
               </div>
               {/* Most Consistent */}
-              <div className="bg-gray-900 rounded-lg p-2 shadow flex flex-col min-h-0">
-                <h2 className="text-base font-bold mb-1 text-center text-white">Most Consistent</h2>
-                <ConsistencyTable
+              <div className="rounded-2xl p-4 ">
+                <MiniConsistencyTable
                   players={tournamentData.consistentPlayers}
                   filterName={activePlayerName}
-                  colorScheme="gray-on-black"
-                  compact
-                  fontSize="xs"
                 />
               </div>
             </div>
             {/* Queried Tournaments */}
             {tournamentData?.tournamentNames && tournamentData?.tournamentNames.length > 0 && tournamentData?.tournamentSlugs && (
-              <div className="mt-2 w-full max-w-full">
-                <h2 className="text-base font-bold mb-1 text-center text-white">Queried Tournaments</h2>
-                <ul className="pl-0 space-y-1 flex flex-wrap justify-center">
+              <div className="mt-12 w-full max-w-5xl mx-auto">
+                <h2 className="text-2xl font-bold mb-2 text-center text-white">Queried Tournaments</h2>
+                <ul className="pl-0 space-y-1">
                   {tournamentData.tournamentNames.map((name, index) => (
-                    <li key={index} className="text-xs text-white list-none mx-2">
+                    <li key={index} className="text-lg text-white list-none">
                       {tournamentData.tournamentSlugs && tournamentData.tournamentSlugs[index] ? (
                         <a
                           href={`https://www.start.gg/${tournamentData.tournamentSlugs[index]}`}
@@ -527,17 +602,11 @@ export function TournamentDashboard() {
             {!isLoading && tournamentData && !noData && (
               <>
                 <div className="space-y-8 rounded-lg shadow-lg p-6 mt-0">
-                  {/* Title for JPG only */}
-                  <h1
-                    className="text-2xl font-bold text-center mb-4 uppercase tracking-wide text-pink-600 print-or-jpg:block hidden"
-                  >
-                    {seriesInputs.find(s => s.tournamentSeriesName.trim())?.tournamentSeriesName.trim().toUpperCase() || "TOURNAMENT"} Tournament Series
-                  </h1>
                   {/* Filters Section */}
                   {/* Remove the colored bar and margin above stats cards */}
                   {/* Stats Cards */}
                   <div className="mt-0">
-                    <StatsCards stats={tournamentData.summary} />
+                    <StatsCards stats={tournamentData.summary} playerName={activePlayerName} />
                   </div>
                   {/* Top Performers & Rising Stars */}
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -563,8 +632,10 @@ export function TournamentDashboard() {
                   </div>
                   {/* Tournament Names */}
                   {tournamentData?.tournamentNames && tournamentData?.tournamentNames.length > 0 && tournamentData?.tournamentSlugs && (
-                    <div className="mt-8">
-                      <h2 className="text-lg font-semibold mb-4 text-blue-700 print-or-jpg:block hidden">Queried Tournaments</h2>
+                    <div className="mt-8 w-full max-w-6xl">
+                      <h2 className="text-lg font-semibold mb-4 text-blue-700">
+                        Queried Tournaments
+                      </h2>
                       <ul className="list-disc pl-5 space-y-1">
                         {tournamentData.tournamentNames.map((name, index) => (
                           <li key={index} className="text-sm text-muted-foreground">

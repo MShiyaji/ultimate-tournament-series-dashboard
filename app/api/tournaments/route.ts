@@ -52,7 +52,7 @@ export async function POST(req: Request) {
     rawTournamentData = { tournaments: { nodes: cached.data } };
   } else {
     console.log("⏳ Fetching fresh tournament data");
-    const result = await fetchberkeleyTournaments(startDate, endDate, seriesInputs);
+    const result = await fetchberkeleyTournaments(startDate, endDate, seriesInputs, playerName);
     rawTournamentData = result;
     basicTournamentCache.set(cacheKey, {
       data: result.tournaments.nodes,

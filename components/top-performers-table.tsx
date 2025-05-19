@@ -66,15 +66,26 @@ export function TopPerformersTable({ players, filterName }) {
             {filteredPlayers.map((player) => {
               // Find the player's overall rank in the full list
               const overallRank = displayPlayers.findIndex(p => p.id === player.id) + 1
+
+              // Medal colors for top 3
+              let medalColor = ""
+              if (overallRank === 1) medalColor = "#FFD700" // Gold
+              else if (overallRank === 2) medalColor = "#C0C0C0" // Silver
+              else if (overallRank === 3) medalColor = "#CD7F32" // Bronze
+
               return (
                 <TableRow key={player.id}>
-                  <TableCell className="font-medium">{overallRank}</TableCell>
+                  <TableCell className="font-medium">
+                    <span style={overallRank <= 3 ? { color: medalColor, fontWeight: 700 } : {}}>
+                      {overallRank}
+                    </span>
+                  </TableCell>
                   <TableCell>
                     <div className="font-medium">{player.name}</div>
                   </TableCell>
                   <TableCell className="text-right">{player.performanceScore || player.averageNormalizedPlacement}</TableCell>
                   <TableCell className="text-right">
-                    <Badge variant={overallRank < 3 ? "default" : "outline"}>{player.bestPlacement}</Badge>
+                    <span className="font-medium">{player.bestPlacement}</span>
                   </TableCell>
                   <TableCell className="text-right">{player.tournaments}</TableCell>
                 </TableRow>

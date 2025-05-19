@@ -76,11 +76,15 @@ export async function fetchCachedBasicTournaments(): Promise<any[]> {
 async function cacheBasicTournaments() {
   const existingTournaments = await fetchCachedBasicTournaments();
   const existingIds = new Set(existingTournaments.map(t => t.id));
-
-  const startDate = subDays(new Date(), 1); // yesterday
+  
+  // If cache is empty, start from much earlier
+  const startDate = existingTournaments.length > 0 
+    ? subDays(new Date(), 1) // If cache exists, just add yesterday
+    : new Date('2018-01-01'); // Otherwise start from 2018 (or whenever is appropriate)
+  
   const endDate = new Date(); // today
-  const chunkSizeDays = 1;
-
+  const chunkSizeDays = existingTournaments.length > 0 ? 1 : 30; // Use larger chunks for initial build
+  
   const newTournaments: any[] = [];
   let currentStart = startDate;
 

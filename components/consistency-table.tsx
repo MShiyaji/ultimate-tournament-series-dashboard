@@ -45,6 +45,11 @@ export function ConsistencyTable({ players, filterName }) {
             {filteredPlayers.map((player) => {
               // Find the player's overall rank among allPlayers
               const overallRank = allPlayers.findIndex(p => p.id === player.id) + 1
+              // Parse consistency as a number (strip % if present)
+              const consistencyValue = typeof player.consistency === "string"
+                ? parseFloat(player.consistency.replace("%", ""))
+                : player.consistency
+
               return (
                 <TableRow key={player.id}>
                   <TableCell className="font-medium">{overallRank}</TableCell>
@@ -52,7 +57,11 @@ export function ConsistencyTable({ players, filterName }) {
                     <div className="font-medium">{player.name}</div>
                   </TableCell>
                   <TableCell className="text-right">
-                    <Badge variant={overallRank < 3 ? "default" : "outline"}>{player.consistency}</Badge>
+                    {consistencyValue > 90 ? (
+                      <span className="font-semibold" style={{ color: "#FFD700" }}>{player.consistency}</span>
+                    ) : (
+                      <span className="font-medium text-white">{player.consistency}</span>
+                    )}
                   </TableCell>
                   <TableCell className="text-right">{player.tournaments}</TableCell>
                   <TableCell className="text-right">{player.seedVariance ?? player.upsetFactorVariance}</TableCell>
