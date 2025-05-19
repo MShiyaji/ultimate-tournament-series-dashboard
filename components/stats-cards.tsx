@@ -47,7 +47,7 @@ export function StatsCards({ stats, playerName }) {
             <TrendingUp className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{displayStats.playerSetUpsetRate ?? displayStats.upsetRate}</div>
+            <div className="text-2xl font-bold">{displayStats.playerSetUpsetRate}</div>
             <p className="text-xs text-muted-foreground">Sets won vs higher seeds</p>
           </CardContent>
         </Card>

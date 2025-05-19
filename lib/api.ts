@@ -12,19 +12,45 @@ function delay(ms: number) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-// API key rotation
-const STARTGG_API_KEYS = (process.env.STARTGG_API_KEYS || "").split(",").map(k => k.trim()).filter(Boolean);
-let apiKeyIndex = 0;
-function getNextApiKey() {
-  const key = STARTGG_API_KEYS[apiKeyIndex % STARTGG_API_KEYS.length];
-  apiKeyIndex++;
-  return key;
+// Adaptive delay helper
+function createAdaptiveDelay(initial = 0, min = 0, max = 5000, step = 200) {
+  let delayMs = initial;
+  return {
+    async wait() {
+      await delay(delayMs);
+    },
+    increase() {
+      delayMs = Math.min(max, delayMs + step);
+    },
+    decrease() {
+      delayMs = Math.max(min, delayMs - step);
+    },
+    get value() {
+      return delayMs;
+    }
+  };
 }
 
-async function fetchFromAPI(query: string, variables: Record<string, any>, retries = 3): Promise<any> {
+const STARTGG_API_KEYS = (process.env.STARTGG_API_KEYS || "").split(",").map(k => k.trim()).filter(Boolean);
+
+// Helper: split a date range into N periods
+function splitDateRange(start: Date, end: Date, n: number): [Date, Date][] {
+  const periods: [Date, Date][] = [];
+  const totalMs = end.getTime() - start.getTime();
+  for (let i = 0; i < n; i++) {
+    const periodStart = new Date(start.getTime() + (totalMs * i) / n);
+    const periodEnd = i === n - 1
+      ? end
+      : new Date(start.getTime() + (totalMs * (i + 1)) / n - 1);
+    periods.push([periodStart, periodEnd]);
+  }
+  return periods;
+}
+
+// fetchFromAPI now takes an explicit apiKey and adaptiveDelay
+async function fetchFromAPI(query: string, variables: Record<string, any>, apiKey: string, adaptiveDelay?: ReturnType<typeof createAdaptiveDelay>, retries = 3): Promise<any> {
   let lastError;
   for (let attempt = 0; attempt <= retries; attempt++) {
-    const apiKey = getNextApiKey();
     const response = await fetch(API_URL, {
       method: "POST",
       headers: {
@@ -36,15 +62,17 @@ async function fetchFromAPI(query: string, variables: Record<string, any>, retri
 
     if (!response.ok) {
       const errorText = await response.text();
-      // If rate limit, wait and retry with next key
       if (response.status === 429) {
         console.warn(`⚠️ Rate limit hit (attempt ${attempt + 1}/${retries + 1}). Waiting 60 seconds before retry...`);
+        if (adaptiveDelay) adaptiveDelay.increase();
         await delay(60000);
         lastError = new Error(`API request failed with status ${response.status}: ${errorText}`);
         continue;
       }
       throw new Error(`API request failed with status ${response.status}: ${errorText}`);
     }
+
+    if (adaptiveDelay) adaptiveDelay.decrease();
 
     const data = await response.json();
     if (data.errors) throw new Error(data.errors.map((e: any) => e.message).join(", "));
@@ -53,9 +81,9 @@ async function fetchFromAPI(query: string, variables: Record<string, any>, retri
   throw lastError || new Error("API request failed after retries");
 }
 
-// Query for phase groups (without sets)
-const phaseGroupsQuery = `
-  query TournamentPhaseGroups($tournamentId: ID!) {
+// Combined query for phase groups (without sets) AND event standings
+const phaseGroupsAndStandingsQuery = `
+  query TournamentPhaseGroupsAndStandings($tournamentId: ID!) {
     tournament(id: $tournamentId) {
       id
       name
@@ -68,6 +96,22 @@ const phaseGroupsQuery = `
         name
         numEntrants
         videogame { id }
+        standings(query: { perPage: 128 }) {
+          nodes {
+            placement
+            entrant {
+              id
+              name
+              initialSeedNum
+              participants {
+                player {
+                  id
+                  gamerTag
+                }
+              }
+            }
+          }
+        }
         phases {
           id
           name
@@ -114,31 +158,6 @@ const setsQuery = `
   }
 `;
 
-// Query for event standings
-const eventStandingsQuery = `
-  query EventStandings($eventId: ID!) {
-    event(id: $eventId) {
-      id
-      standings(query: { perPage: 128 }) {
-        nodes {
-          placement
-          entrant {
-            id
-            name
-            initialSeedNum
-            participants {
-              player {
-                id
-                gamerTag
-              }
-            }
-          }
-        }
-      }
-    }
-  }
-`;
-
 export async function fetchberkeleyTournaments(
   startDate: string,
   endDate: string,
@@ -160,171 +179,172 @@ export async function fetchberkeleyTournaments(
   try {
     const text = await fileData.text();
     allTournaments = JSON.parse(text);
-    console.log(`📊 Total tournaments in cache: ${allTournaments.length}`);
-    if (allTournaments.length > 0) {
-      console.log("Sample tournament structure:", JSON.stringify(allTournaments[0], null, 2));
-    }
   } catch (err) {
-    console.error("❌ Failed to parse tournament cache:", err);
     throw new Error("Failed to parse tournament cache");
   }
 
-  // Filter by date
+  // 1. Pre-filter tournaments by date and seriesInputs BEFORE making API calls
   const start = new Date(startDate);
   const end = new Date(endDate);
-  const dateFilteredTournaments = allTournaments.filter(t => {
-    if (!t.startAt) {
-      console.log(`⚠️ Tournament missing startAt: ${t.name}`);
-      return false;
-    }
+
+  // Pre-filter tournaments by date
+  let filteredTournaments = allTournaments.filter(t => {
+    if (!t.startAt) return false;
     const tournamentDate = new Date(t.startAt * 1000);
     return tournamentDate >= start && tournamentDate <= end;
   });
 
-  allTournaments = dateFilteredTournaments;
+  // Pre-filter tournaments by seriesInputs
+  if (seriesInputs && seriesInputs.length > 0) {
+    filteredTournaments = filteredTournaments.filter(tournament => {
+      return seriesInputs.some(input => {
+        const tournamentSeriesName = input.tournamentSeriesName?.trim();
+        const primaryContact = input.primaryContact?.trim();
+        let nameMatch = false;
+        let contactMatch = false;
+        if (tournamentSeriesName && tournament.name) {
+          nameMatch = tournament.name.toLowerCase().includes(tournamentSeriesName.toLowerCase());
+        }
+        if (primaryContact && tournament.primaryContact) {
+          contactMatch = tournament.primaryContact.toLowerCase().includes(primaryContact.toLowerCase());
+        }
+        return (tournamentSeriesName && nameMatch) || (primaryContact && contactMatch);
+      });
+    });
+  }
 
-  // Series input filtering
-  const detailedTournaments = [];
-  let seriesMatchCount = 0;
+  // 2. Split tournaments into N chunks for parallel API key usage
+  const apiKeys = STARTGG_API_KEYS;
+  const numKeys = apiKeys.length;
+  function chunkArray(array: any[], n: number) {
+    const chunks = Array.from({ length: n }, () => []);
+    array.forEach((item, i) => {
+      chunks[i % n].push(item);
+    });
+    return chunks;
+  }
+  const tournamentChunks = chunkArray(filteredTournaments, numKeys);
 
-  for (const tournament of allTournaments) {
-    let shouldQuery = false;
+  // 3. Process each chunk in parallel, one per API key
+  const periodPromises = tournamentChunks.map(async (tournaments, idx) => {
+    const apiKey = apiKeys[idx];
+    const adaptiveDelay = createAdaptiveDelay();
+    const detailedTournaments = [];
+    for (const tournament of tournaments) {
+      try {
+        await adaptiveDelay.wait();
 
-    if (!seriesInputs || seriesInputs.length === 0) continue;
+        // Fetch phase groups and standings for this tournament
+        const phaseGroupsAndStandingsData = await fetchFromAPI(
+          phaseGroupsAndStandingsQuery,
+          { tournamentId: tournament.id },
+          apiKey,
+          adaptiveDelay
+        );
+        const tournamentDetail = phaseGroupsAndStandingsData?.tournament;
+        if (!tournamentDetail) continue;
 
-    for (const input of seriesInputs) {
-      const tournamentSeriesName = input.tournamentSeriesName?.trim();
-      const primaryContact = input.primaryContact?.trim();
+        // Pre-filter events to only singles events
+        const singlesEvents = (tournamentDetail.events || []).filter((event: { name: string }) =>
+          event.name.toLowerCase().includes("singles")
+        );
 
-      let nameMatch = false;
-      let contactMatch = false;
+        // If no singles events, skip this tournament
+        if (singlesEvents.length === 0) continue;
 
-      if (tournamentSeriesName && tournament.name) {
-        nameMatch = tournament.name.toLowerCase().includes(tournamentSeriesName.toLowerCase());
-      }
+        // Fetch sets for all phase groups (paginated) ONLY if playerName is provided
+        if (playerName) {
+          for (const event of singlesEvents) {
+            for (const phase of event.phases || []) {
+              for (const group of (phase.phaseGroups?.nodes || [])) {
+                let allSets = [];
+                let page = 1;
+                let totalPages = 1;
+                do {
+                  await adaptiveDelay.wait();
+                  const setsData = await fetchFromAPI(
+                    setsQuery,
+                    { phaseGroupId: group.id, page },
+                    apiKey,
+                    adaptiveDelay
+                  );
+                  const sets = setsData?.phaseGroup?.sets?.nodes || [];
+                  totalPages = setsData?.phaseGroup?.sets?.pageInfo?.totalPages || 1;
+                  allSets = allSets.concat(sets);
+                  page++;
+                } while (page <= totalPages);
 
-      if (primaryContact && tournament.primaryContact) {
-        contactMatch = tournament.primaryContact.toLowerCase().includes(primaryContact.toLowerCase());
-      }
-
-      if ((tournamentSeriesName && nameMatch) || (primaryContact && contactMatch)) {
-        shouldQuery = true;
-        seriesMatchCount++;
-        break;
-      }
-    }
-
-    if (!shouldQuery) continue;
-
-    try {
-      await delay(500);
-
-      // 1. Fetch phase groups for this tournament
-      const phaseGroupsData = await fetchFromAPI(phaseGroupsQuery, { tournamentId: tournament.id });
-      const tournamentDetail = phaseGroupsData?.tournament;
-      if (!tournamentDetail) continue;
-
-      // Only process singles events
-      const singlesEvents = (tournamentDetail.events || []).filter((event: { name: string }) =>
-        event.name.toLowerCase().includes("singles")
-      );
-
-      // 2. For each event, fetch standings and sets for all phase groups (paginated)
-      for (const event of singlesEvents) {
-        // Fetch standings for this event
-        const standingsData = await fetchFromAPI(eventStandingsQuery, { eventId: event.id });
-        event.standings = standingsData?.event?.standings || { nodes: [] };
-
-        // Fetch sets for each phase group
-        for (const phase of event.phases || []) {
-          for (const group of (phase.phaseGroups?.nodes || [])) {
-            let allSets = [];
-            let page = 1;
-            let totalPages = 1;
-            do {
-              await delay(300); // avoid rate limits
-              const setsData = await fetchFromAPI(setsQuery, { phaseGroupId: group.id, page });
-              const sets = setsData?.phaseGroup?.sets?.nodes || [];
-              totalPages = setsData?.phaseGroup?.sets?.pageInfo?.totalPages || 1;
-              allSets = allSets.concat(sets);
-              page++;
-            } while (page <= totalPages);
-
-            // Attach sets to the group
-            group.sets = { nodes: allSets };
+                group.sets = { nodes: allSets };
+              }
+            }
           }
         }
-      }
 
-      // 3. If playerName is defined, filter sets for this player
-      let playerSetHistory = null;
-      if (playerName) {
-        const lowerPlayerName = playerName.trim().toLowerCase();
-        const filteredEvents = [];
+        // Filter sets for player if needed (unchanged)
+        let playerSetHistory = null;
+        if (playerName) {
+          const lowerPlayerName = playerName.trim().toLowerCase();
+          const filteredEvents = [];
 
-        for (const event of singlesEvents) {
-          const filteredPhases = [];
-          for (const phase of event.phases || []) {
-            const filteredPhaseGroups = [];
-            for (const group of (phase.phaseGroups?.nodes || [])) {
-              const filteredSets = (group.sets?.nodes || []).filter(set =>
-                set.slots?.some(slot =>
-                  slot.entrant?.participants?.some(
-                    (participant: any) =>
-                      participant.player?.gamerTag?.toLowerCase() === lowerPlayerName
+          for (const event of singlesEvents) {
+            const filteredPhases = [];
+            for (const phase of event.phases || []) {
+              const filteredPhaseGroups = [];
+              for (const group of (phase.phaseGroups?.nodes || [])) {
+                const filteredSets = (group.sets?.nodes || []).filter(set =>
+                  set.slots?.some(slot =>
+                    slot.entrant?.participants?.some(
+                      (participant: any) =>
+                        participant.player?.gamerTag?.toLowerCase() === lowerPlayerName
+                    )
                   )
-                )
-              );
-              if (filteredSets.length > 0) {
-                filteredPhaseGroups.push({
-                  ...group,
-                  sets: { nodes: filteredSets }
+                );
+                if (filteredSets.length > 0) {
+                  filteredPhaseGroups.push({
+                    ...group,
+                    sets: { nodes: filteredSets }
+                  });
+                }
+              }
+              if (filteredPhaseGroups.length > 0) {
+                filteredPhases.push({
+                  ...phase,
+                  phaseGroups: { nodes: filteredPhaseGroups }
                 });
               }
             }
-            if (filteredPhaseGroups.length > 0) {
-              filteredPhases.push({
-                ...phase,
-                phaseGroups: { nodes: filteredPhaseGroups }
+            if (filteredPhases.length > 0) {
+              filteredEvents.push({
+                ...event,
+                phases: filteredPhases
               });
             }
           }
-          if (filteredPhases.length > 0) {
-            filteredEvents.push({
-              ...event,
-              phases: filteredPhases
-            });
+
+          if (filteredEvents.length > 0) {
+            playerSetHistory = {
+              ...tournamentDetail,
+              events: filteredEvents
+            };
+          } else {
+            playerSetHistory = null;
           }
         }
 
-        if (filteredEvents.length > 0) {
-          playerSetHistory = {
-            ...tournamentDetail,
-            events: filteredEvents
-          };
-        } else {
-          playerSetHistory = null;
-        }
-      }
-
-      if (singlesEvents.length > 0) {
         detailedTournaments.push({
           ...tournamentDetail,
           events: singlesEvents,
           playerSetHistory,
         });
-        console.log(`✅ Added tournament with ${singlesEvents.length} singles events: ${tournamentDetail.name}`);
-      } else {
-        console.log(`❌ No singles events found for: ${tournamentDetail.name}`);
+      } catch (error) {
+        console.error(`Error fetching details for tournament ${tournament.id}:`, error);
       }
-    } catch (error) {
-      console.error(`Error fetching details for tournament ${tournament.id}:`, error);
     }
-  }
+    return detailedTournaments;
+  });
 
-  console.log(`🔍 Tournaments matching series criteria: ${seriesMatchCount}`);
-  console.log(`🏆 Final detailed tournaments found: ${detailedTournaments.length}`);
+  // Wait for all periods to finish and flatten results
+  const allDetailedTournaments = (await Promise.all(periodPromises)).flat();
 
-  // Return in the format expected by route.ts and data-processing.ts
-  return { tournaments: { nodes: detailedTournaments } };
+  return { tournaments: { nodes: allDetailedTournaments } };
 }

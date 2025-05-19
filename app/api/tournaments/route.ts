@@ -52,15 +52,20 @@ export async function POST(req: Request) {
     rawTournamentData = { tournaments: { nodes: cached.data } };
   } else {
     console.log("⏳ Fetching fresh tournament data");
-    const result = await fetchberkeleyTournaments(startDate, endDate, seriesInputs, playerName);
-    rawTournamentData = result;
+    // fetchberkeleyTournaments already returns { tournaments: { nodes: [...] } }
+    rawTournamentData = await fetchberkeleyTournaments(startDate, endDate, seriesInputs, playerName);
     basicTournamentCache.set(cacheKey, {
-      data: result.tournaments.nodes,
+      data: rawTournamentData.tournaments.nodes,
       timestamp: Date.now(),
     });
   }
 
-  const processedStats = processberkeleyData(rawTournamentData, playerName, attendanceRatio);
+  // Pass the correct structure to processberkeleyData
+  const processedStats = processberkeleyData(
+    rawTournamentData,
+    playerName,
+    attendanceRatio
+  );
 
   return new Response(JSON.stringify(processedStats), {
     status: 200,
