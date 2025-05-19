@@ -1,7 +1,6 @@
 "use client"
 
 import { useState, useEffect, useRef } from "react"
-import html2canvas from "html2canvas"
 import { DashboardHeader } from "@/components/dashboard-header"
 import { StatsCards } from "@/components/stats-cards"
 import { TopPerformersTable } from "@/components/top-performers-table"
@@ -244,6 +243,7 @@ export function TournamentDashboard() {
 
   // Download handler
   const handleDownloadJPG = async () => {
+    const html2canvas = (await import("html2canvas")).default;
     setIsExporting(true);
     await new Promise(r => setTimeout(r, 50)); // Wait for DOM update
     if (!dashboardRef.current) return;
