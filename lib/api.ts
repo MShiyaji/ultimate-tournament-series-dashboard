@@ -151,6 +151,21 @@ export async function fetchberkeleyTournaments(
     });
   }
 
+  if (playerName) {
+    const lowerPlayerName = playerName.trim().toLowerCase();
+    tournaments = tournaments.filter(tournament =>
+      tournament.events.some(event =>
+        event.standings?.nodes?.some(
+          (standing: any) =>
+            standing.entrant?.participants?.some(
+              (participant: any) =>
+                participant.player?.gamerTag?.toLowerCase() === lowerPlayerName
+            )
+        )
+      )
+    );
+  }
+
   // If no playerName, return the cached tournaments as is (with sets already included)
   if (!playerName) {
     return { tournaments: { nodes: tournaments } };

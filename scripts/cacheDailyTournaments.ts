@@ -6,14 +6,13 @@ dotenv.config({ path: ".env" });
 
 const API_URL = "https://api.start.gg/gql/alpha";
 
-
 const STARTGG_API_KEYS = (process.env.STARTGG_API_KEYS || process.env.STARTGG_API_KEY || "")
   .split(",")
   .map(k => k.trim())
   .filter(Boolean);
 
 const s3 = new S3Client({
-  region: "us-east-1", // or your region
+  region: "us-east-2", // or your region
   credentials: {
     accessKeyId: process.env.AWS_ACCESS_KEY_ID!,
     secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY!,
@@ -47,8 +46,8 @@ const basicQuery = `
   }
 `;
 
-const phaseGroupsAndStandingsQuery = `
-  query TournamentPhaseGroupsAndStandings($tournamentId: ID!) {
+const tournamentWithStandingsQuery = `
+  query TournamentWithStandings($tournamentId: ID!) {
     tournament(id: $tournamentId) {
       id
       name
@@ -77,46 +76,6 @@ const phaseGroupsAndStandingsQuery = `
             }
           }
         }
-        phases {
-          id
-          name
-          phaseGroups {
-            nodes {
-              id
-            }
-          }
-        }
-      }
-    }
-  }
-`;
-
-const setsQuery = `
-  query PhaseGroupSets($phaseGroupId: ID!, $page: Int!) {
-    phaseGroup(id: $phaseGroupId) {
-      id
-      sets(perPage: 25, page: $page) {
-        nodes {
-          id
-          round
-          winnerId
-          slots {
-            entrant {
-              id
-              name
-              initialSeedNum
-              participants {
-                player {
-                  id
-                  gamerTag
-                }
-              }
-            }
-          }
-        }
-        pageInfo {
-          totalPages
-        }
       }
     }
   }
@@ -124,6 +83,24 @@ const setsQuery = `
 
 function delay(ms: number) {
   return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+function createAdaptiveDelay(initial = 200, min = 0, max = 5000, step = 100) {
+  let delayMs = initial;
+  return {
+    async wait() {
+      if (delayMs > 0) await delay(delayMs);
+    },
+    increase() {
+      delayMs = Math.min(max, delayMs + step);
+    },
+    decrease() {
+      delayMs = Math.max(min, delayMs - step);
+    },
+    get value() {
+      return delayMs;
+    }
+  };
 }
 
 async function fetchFromAPI(query: string, variables: Record<string, any>, apiKey: string) {
@@ -288,49 +265,19 @@ async function cacheBasicTournaments() {
   // 1. Save the basicQuery results
   const basicTournaments = [...existingTournaments, ...newTournaments];
 
-  // 2. For each tournament, fetch full details and sets with API key rotation
+  // 2. For each tournament, fetch full details and sets with API key rotation and adaptive delay
   const detailedTournaments: any[] = [];
-  const getNextApiKey = getApiKeyRotator(STARTGG_API_KEYS);
-
   for (const tournament of basicTournaments) {
     try {
-      // Fetch tournament details (phases, phaseGroups, standings)
-      const apiKeyForDetails = getNextApiKey();
       const data = await fetchFromAPI(
-        phaseGroupsAndStandingsQuery,
+        tournamentWithStandingsQuery,
         { tournamentId: tournament.id },
-        apiKeyForDetails
+        getApiKeyRotator(STARTGG_API_KEYS)()
       );
-      const tournamentDetail = data?.tournament;
-      if (!tournamentDetail) continue;
-
-      // For each event, phase, and phaseGroup, fetch all sets
-      for (const event of tournamentDetail.events || []) {
-        for (const phase of event.phases || []) {
-          for (const group of (phase.phaseGroups?.nodes || [])) {
-            let allSets: any[] = [];
-            let page = 1;
-            let totalPages = 1;
-            do {
-              await delay(500); // avoid rate limits
-              const apiKeyForSets = getNextApiKey();
-              const setsData = await fetchFromAPI(
-                setsQuery,
-                { phaseGroupId: group.id, page },
-                apiKeyForSets
-              );
-              const sets = setsData?.phaseGroup?.sets?.nodes || [];
-              totalPages = setsData?.phaseGroup?.sets?.pageInfo?.totalPages || 1;
-              allSets = allSets.concat(sets);
-              page++;
-            } while (page <= totalPages);
-
-            group.sets = { nodes: allSets };
-          }
-        }
+      if (data?.tournament) {
+        detailedTournaments.push(data.tournament);
       }
-
-      detailedTournaments.push(tournamentDetail);
+      await delay(500);
     } catch (error) {
       console.error(`Failed to fetch details for tournament ${tournament.id}:`, error);
     }

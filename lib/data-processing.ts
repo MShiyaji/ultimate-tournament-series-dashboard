@@ -470,106 +470,6 @@ export function processberkeleyData(data: { tournaments: any }, playerName?: str
       }
     });
 
-    // --- Add set-level upset metrics for a player using playerSetHistory ---
-    let playerSetUpsetRate = null;
-    let playerSetGetUpsetRate = null;
-    let playerUnique = 0;
-
-    if (playerName && playerName.trim()) {
-      const lowerPlayerName = playerName.trim().toLowerCase();
-      let setUpsets = 0;
-      let setGetUpset = 0;
-      let setTotal = 0;
-      const uniqueOpponentIds = new Set();
-
-      tournaments.forEach((tournament: any) => {
-        // Use playerSetHistory if available (from API)
-        const playerSetHistory = tournament.playerSetHistory;
-        console.dir(playerSetHistory, { depth: null });
-        console.log("playerSetHistory:", playerSetHistory);
-        if (!playerSetHistory || !playerSetHistory.events) return;
-
-        playerSetHistory.events.forEach((event: any) => {
-          if (!event.phases) return;
-          event.phases.forEach((phase: any) => {
-            // The sets are now inside phaseGroups[].nodes[].sets.nodes
-            if (!phase.phaseGroups || !phase.phaseGroups.nodes) return;
-            phase.phaseGroups.nodes.forEach((group: any) => {
-              if (!group.sets || !group.sets.nodes) return;
-              group.sets.nodes.forEach((set: any) => {
-                const slots = set.slots || [];
-                // Find the slot for this player
-                const playerSlotIndex = slots.findIndex(slot =>
-                  slot.entrant?.participants?.some(
-                    (participant: any) =>
-                      participant.player?.gamerTag?.toLowerCase() === lowerPlayerName
-                  )
-                );
-                if (playerSlotIndex === -1) {
-                  console.log("Skipping set", set.id, "- player not found in slots");
-                  return;
-                }
-                console.log("Found player slot index:", playerSlotIndex);
-
-                const playerSlot = slots[playerSlotIndex];
-                const oppSlot = slots[1 - playerSlotIndex];
-                if (!playerSlot) {
-                  console.log("Skipping set", set.id, "- playerSlot is undefined");
-                  return;
-                }
-                if (!oppSlot) {
-                  console.log("Skipping set", set.id, "- oppSlot is undefined");
-                  return;
-                }
-
-                // Add all opponent player IDs to the set
-                oppSlot.entrant?.participants?.forEach((participant: any) => {
-                  if (participant.player?.id) {
-                    uniqueOpponentIds.add(participant.player.id);
-                  }
-                });
-
-                const playerSeed = playerSlot.entrant?.initialSeedNum;
-                const oppSeed = oppSlot.entrant?.initialSeedNum;
-                if (playerSeed == null) {
-                  console.log("Skipping set", set.id, "- playerSeed is null/undefined", { playerSlot });
-                  return;
-                }
-                if (oppSeed == null) {
-                  console.log("Skipping set", set.id, "- oppSeed is null/undefined", { oppSlot });
-                  return;
-                }
-                if (playerSeed === oppSeed) {
-                  console.log("Skipping set", set.id, "- playerSeed equals oppSeed", { playerSeed, oppSeed });
-                  return;
-                }
-
-                setTotal++;
-
-                // Determine if this player won or lost
-                const winnerId = set.winnerId;
-                const playerEntrantId = playerSlot.entrant?.id;
-                const playerWon = winnerId && playerEntrantId && winnerId === playerEntrantId;;
-
-                if (playerWon && playerSeed > oppSeed) {
-                  setUpsets++;
-                  console.log("UPSET!", { player: playerSlot.entrant?.participants?.[0]?.player?.gamerTag, playerSeed, oppSeed });
-                }
-                if (!playerWon && playerSeed < oppSeed) {
-                  setGetUpset++;
-                  console.log("GET UPSET!", { player: playerSlot.entrant?.participants?.[0]?.player?.gamerTag, playerSeed, oppSeed });
-                }
-              });
-            });
-          });
-        });
-      });
-
-      playerSetUpsetRate = setTotal > 0 ? `${((setUpsets / setTotal) * 100).toFixed(1)}%` : "0%";
-      playerSetGetUpsetRate = setTotal > 0 ? `${((setGetUpset / setTotal) * 100).toFixed(1)}%` : "0%";
-      playerUnique = uniqueOpponentIds.size;
-    }
-
     // Calculate the number of tournaments attended by the selected player
     let playerTournaments = 0;
     if (playerName && playerName.trim()) {
@@ -593,11 +493,7 @@ export function processberkeleyData(data: { tournaments: any }, playerName?: str
       totalTournaments: tournaments.length,
       averageEntrants: tournaments.length > 0 ? Math.round(totalEntrants / tournaments.length) : 0,
       upsetRate: matchCount > 0 ? `${Math.round((upsetCount / matchCount) * 100)}%` : "0%",
-      // Add set-level upset metrics if filtering by player
-      ...(playerSetUpsetRate !== null && { playerSetUpsetRate }),
-      ...(playerSetGetUpsetRate !== null && { playerSetGetUpsetRate }),
       ...(playerName && playerName.trim() && { playerTournaments }),
-      ...(playerName && playerName.trim() && { playerUnique }), 
     }
     // get a list of all tournament names and slugs
     const tournamentNames = tournaments.map((tournament: { name: string }) => tournament.name);
