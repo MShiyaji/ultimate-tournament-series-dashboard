@@ -41,36 +41,25 @@ const basicQuery = `
         name
         primaryContact
         startAt
-      }
-    }
-  }
-`;
-
-const tournamentWithStandingsQuery = `
-  query TournamentWithStandings($tournamentId: ID!) {
-    tournament(id: $tournamentId) {
-      id
-      name
-      slug
-      startAt
-      numAttendees
-      primaryContact
-      events(filter: { videogameId: 1386 }) {
-        id
-        name
-        numEntrants
-        videogame { id }
-        standings(query: { perPage: 128 }) {
-          nodes {
-            placement
-            entrant {
-              id
-              name
-              initialSeedNum
-              participants {
-                player {
-                  id
-                  gamerTag
+        slug
+        numAttendees
+        events(filter: { videogameId: 1386 }) {
+          id
+          name
+          numEntrants
+          videogame { id }
+          standings(query: { perPage: 128 }) {
+            nodes {
+              placement
+              entrant {
+                id
+                name
+                initialSeedNum
+                participants {
+                  player {
+                    id
+                    gamerTag
+                  }
                 }
               }
             }
@@ -262,36 +251,17 @@ async function cacheBasicTournaments() {
 
   console.log(`📦 Found ${newTournaments.length} new tournaments. Updating cache...`);
 
-  // 1. Save the basicQuery results
+  // After fetching all pages, just use the tournaments array:
   const basicTournaments = [...existingTournaments, ...newTournaments];
 
-  // 2. For each tournament, fetch full details and sets with API key rotation and adaptive delay
-  const detailedTournaments: any[] = [];
-  for (const tournament of basicTournaments) {
-    try {
-      const data = await fetchFromAPI(
-        tournamentWithStandingsQuery,
-        { tournamentId: tournament.id },
-        getApiKeyRotator(STARTGG_API_KEYS)()
-      );
-      if (data?.tournament) {
-        detailedTournaments.push(data.tournament);
-      }
-      await delay(500);
-    } catch (error) {
-      console.error(`Failed to fetch details for tournament ${tournament.id}:`, error);
-    }
-  }
-
-  // 3. Save both basic and detailed tournaments to S3
+  // Save to S3
   const cacheData = {
-    basic: basicTournaments,
-    tournaments: { nodes: detailedTournaments }
+    tournaments: { nodes: basicTournaments }
   };
 
   try {
     await uploadCache(cacheData);
-    console.log(`✅ Cache updated! Now contains ${basicTournaments.length} basic and ${detailedTournaments.length} detailed tournaments`);
+    console.log(`✅ Cache updated! Now contains ${basicTournaments.length} tournaments`);
   } catch (uploadError) {
     console.error("❌ Failed to upload to S3:", uploadError);
 
