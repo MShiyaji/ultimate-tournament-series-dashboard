@@ -213,18 +213,45 @@ export function TournamentDashboard() {
   // Download handler
   const handleDownloadJPG = async () => {
     const html2canvas = (await import("html2canvas")).default;
+    
+    // Set to export mode
     setIsExporting(true);
-    await new Promise(r => setTimeout(r, 50)); // Wait for DOM update
+    
+    // Wait for DOM update
+    await new Promise(r => setTimeout(r, 200)); // Increased wait time
+    
     if (!dashboardRef.current) return;
+    
+    // Save original styles
+    const originalStyle = dashboardRef.current.getAttribute('style') || '';
+    
+    // Force specific dimensions for export - use taller height to ensure title fits
+    dashboardRef.current.style.width = '1024px';
+    dashboardRef.current.style.height = '768px'; // Increased from 732px
+    dashboardRef.current.style.overflow = 'hidden';
+    dashboardRef.current.style.position = 'absolute';
+    dashboardRef.current.style.left = '-9999px'; // Move off-screen during capture
+    
+    // Create canvas with fixed dimensions
     const canvas = await html2canvas(dashboardRef.current, {
-      backgroundColor: "#fff",
-      scale: 2,
+      backgroundColor: "#000",
+      scale: 2, // Higher resolution
       useCORS: true,
-      windowWidth: dashboardRef.current.scrollWidth,
+      width: 1024,
+      height: 768, // Match increased height
+      logging: false,
+      allowTaint: true,
     });
+    
+    // Restore original styling
+    dashboardRef.current.setAttribute('style', originalStyle);
+    
+    // Exit export mode
     setIsExporting(false);
+    
+    // Create and trigger download
     const link = document.createElement("a");
-    link.download = "tournament-dashboard.jpg";
+    link.download = `${activePlayerName ? `${activePlayerName}-` : ''}tournament-dashboard.jpg`;
     link.href = canvas.toDataURL("image/jpeg", 0.95);
     link.click();
   };
@@ -536,105 +563,158 @@ export function TournamentDashboard() {
         {isExporting ? (
           // --- EXPORT LAYOUT (for JPG only) ---
           <div
-            className="bg-black p-8 flex flex-col items-center justify-center"
+            className="bg-black p-6 flex flex-col items-center justify-between"
             style={{ 
-              width: "100%", 
-              height: "100%", 
+              width: "1024px", 
+              height: "768px", 
               margin: "0 auto",
-              boxSizing: "border-box"
+              boxSizing: "border-box",
+              paddingTop: "20px",
+              paddingBottom: "20px",
+              overflow: "hidden"
             }}
           >
             {/* Export Title - Show for both player-specific and general dashboards */}
-            <h1 className="text-3xl font-bold text-white mb-2 text-center w-full">
-              {activePlayerName && activePlayerName.trim() ? (
-                // Player-specific title
-                <>
-                  {activePlayerName}'s{" "}
-                  {seriesInputs
-                    .map((input) =>
-                      input.tournamentSeriesName
-                        ? input.tournamentSeriesName
-                            .split(" ")
-                            .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-                            .join(" ")
-                        : ""
-                    )
-                    .filter(Boolean)
-                    .join(", ")}{" "}
-                  Stats
-                </>
-              ) : (
-                // General title (no player name)
-                <>
-                  {seriesInputs
-                    .map((input) =>
-                      input.tournamentSeriesName
-                        ? input.tournamentSeriesName
-                            .split(" ")
-                            .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-                            .join(" ")
-                        : ""
-                    )
-                    .filter(Boolean)
-                    .join(", ")}{" "}
-                  Stats
-                </>
-              )}
-            </h1>
-            
-            {/* Date Timeline - Added Below Title */}
-            <div className="text-gray-300 text-sm mb-4 text-center w-full">
-              {new Date(dateRange.start).toLocaleDateString('en-US', {
-                month: 'short',
-                day: 'numeric',
-                year: 'numeric'
-              })}{" "}
-              -{" "}
-              {new Date(dateRange.end).toLocaleDateString('en-US', {
-                month: 'short',
-                day: 'numeric',
-                year: 'numeric'
-              })}
+            <div className="mb-1 w-full">
+              {/* Attribution text above title */}
+              <div className="text-gray-500 text-xs text-center mb-1">
+                Smash Ultimate Tournament Dashboard by @Murthrox
+              </div>
+              
+              <h1 
+                className="text-3xl font-bold text-white mb-0 text-center w-full bg-gradient-to-r from-gray-900 via-gray-800 to-gray-900 py-3 px-4 rounded-md border border-gray-700 flex items-center justify-center" 
+                style={{ 
+                  minHeight: "55px",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  paddingTop: "2px",  // Reduced top padding to raise text
+                  paddingBottom: "25px" // Slightly reduced bottom padding
+                }}
+              >
+                {activePlayerName && activePlayerName.trim() ? (
+                  // Player-specific title
+                  <>
+                    {activePlayerName}'s{" "}
+                    {seriesInputs
+                      .filter(input => input.tournamentSeriesName?.trim())
+                      .map((input) =>
+                        input.tournamentSeriesName
+                          .split(" ")
+                          .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+                          .join(" ")
+                      )
+                      .join(", ")}{" "}
+                    Stats
+                  </>
+                ) : (
+                  // No-player title with explicit fallback text
+                  <>
+                    {seriesInputs
+                      .filter(input => input.tournamentSeriesName?.trim())
+                      .map((input) =>
+                        input.tournamentSeriesName
+                          .split(" ")
+                          .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+                          .join(" ")
+                      )
+                      .join(", ") || "Tournament"}{" "}
+                     Stats
+                  </>
+                )}
+              </h1>
+              
+              {/* Date Timeline - Added Below Title - slightly reduced top margin */}
+              <div className="text-gray-400 text-sm mb-4 text-center w-full mt-1">
+                {new Date(dateRange.start).toLocaleDateString('en-US', {
+                  month: 'short',
+                  day: 'numeric',
+                  year: 'numeric'
+                })}{" "}
+                to{" "}
+                {new Date(dateRange.end).toLocaleDateString('en-US', {
+                  month: 'short',
+                  day: 'numeric',
+                  year: 'numeric'
+                })}
+              </div>
             </div>
+            
             {/* Stats Cards */}
-            <div className="w-full max-w-5xl mx-auto mb-4">
+            <div className="w-full mb-4">
               <StatsCards
-                stats={tournamentData.summary} playerName={activePlayerName
-                }
+                stats={tournamentData.summary} 
+                playerName={activePlayerName}
+                isExporting={true}
               />
             </div>
             
-            {/* Tables: 2x2 grid, all gray/white text on black */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full max-w-5xl mx-auto">
-              {/* Top Performers */}
-              <div className="p-3">
-                <MiniTopPerformersTable
-                  players={tournamentData.topPerformers}
-                  filterName={activePlayerName}
-                />
+            {/* Tables: Adjust layout based on whether filtering by player */}
+            {activePlayerName && activePlayerName.trim() ? (
+              // PLAYER SPECIFIC - Single column stacked layout
+              <div className="flex flex-col gap-4 w-full mx-auto flex-1">
+                {/* Top Performers */}
+                <div>
+                  <MiniTopPerformersTable
+                    players={tournamentData.topPerformers}
+                    filterName={activePlayerName}
+                  />
+                </div>
+                {/* Rising Stars */}
+                <div>
+                  <MiniRisingStarsTable
+                    players={tournamentData.risingStars}
+                    filterName={activePlayerName}
+                  />
+                </div>
+                {/* Seed Outperformers */}
+                <div>
+                  <MiniSeedPerformanceTable
+                    players={tournamentData.seedOutperformers}
+                    filterName={activePlayerName}
+                  />
+                </div>
+                {/* Most Consistent */}
+                <div>
+                  <MiniConsistencyTable
+                    players={tournamentData.consistentPlayers}
+                    filterName={activePlayerName}
+                  />
+                </div>
               </div>
-              {/* Rising Stars */}
-              <div className="p-3">
-                <MiniRisingStarsTable
-                  players={tournamentData.risingStars}
-                  filterName={activePlayerName}
-                />
+            ) : (
+              // GENERAL STATS - 2x2 grid layout
+              <div className="grid grid-cols-2 gap-4 w-full mx-auto flex-1">
+                {/* Top Performers */}
+                <div>
+                  <MiniTopPerformersTable
+                    players={tournamentData.topPerformers}
+                    filterName={activePlayerName}
+                  />
+                </div>
+                {/* Rising Stars */}
+                <div>
+                  <MiniRisingStarsTable
+                    players={tournamentData.risingStars}
+                    filterName={activePlayerName}
+                  />
+                </div>
+                {/* Seed Outperformers */}
+                <div>
+                  <MiniSeedPerformanceTable
+                    players={tournamentData.seedOutperformers}
+                    filterName={activePlayerName}
+                  />
+                </div>
+                {/* Most Consistent */}
+                <div>
+                  <MiniConsistencyTable
+                    players={tournamentData.consistentPlayers}
+                    filterName={activePlayerName}
+                  />
+                </div>
               </div>
-              {/* Seed Overperformers */}
-              <div className="p-3">
-                <MiniSeedPerformanceTable
-                  players={tournamentData.seedOutperformers}
-                  filterName={activePlayerName}
-                />
-              </div>
-              {/* Most Consistent */}
-              <div className="p-3">
-                <MiniConsistencyTable
-                  players={tournamentData.consistentPlayers}
-                  filterName={activePlayerName}
-                />
-              </div>
-            </div>
+            )}
           </div>
         ) : (
           // --- NORMAL DASHBOARD LAYOUT ---
@@ -644,24 +724,29 @@ export function TournamentDashboard() {
                 <div className="space-y-4 md:space-y-8 rounded-lg shadow-lg p-3 md:p-6 mt-0">
                   {/* Stats Cards */}
                   <div className="mt-0">
-                    <StatsCards stats={tournamentData.summary} playerName={activePlayerName} />
+                    {activePlayerName && activePlayerName.trim() ? (
+                      // Full-width player stats
+                      <div className="mb-4 w-full">
+                        <h2 className="text-xl font-bold mb-3">{activePlayerName}'s Stats</h2>
+                        <StatsCards stats={tournamentData.summary} playerName={activePlayerName} />
+                      </div>
+                    ) : (
+                      // Normal stats display
+                      <StatsCards stats={tournamentData.summary} playerName={activePlayerName} />
+                    )}
                   </div>
                   {/* Top Performers & Rising Stars */}
                   <div className="grid grid-cols-1 gap-4 md:gap-6">
                     <div className="bg-gradient-to-br from-yellow-200 via-pink-100 to-pink-300 rounded-lg p-3 shadow">
-                      <h2 className="text-lg font-bold mb-2 text-pink-700">Top Performers</h2>
                       <TopPerformersTable players={tournamentData.topPerformers} filterName={activePlayerName} />
                     </div>
                     <div className="bg-gradient-to-br from-blue-200 via-green-100 to-green-300 rounded-lg p-3 shadow">
-                      <h2 className="text-lg font-bold mb-2 text-green-700">Rising Stars</h2>
                       <RisingStarsTable players={tournamentData.risingStars} filterName={activePlayerName} />
                     </div>
                     <div className="bg-gradient-to-br from-purple-200 via-indigo-100 to-indigo-300 rounded-lg p-3 shadow">
-                      <h2 className="text-lg font-bold mb-2 text-indigo-700">Seed Outperformers</h2>
                       <SeedPerformanceTable players={tournamentData.seedOutperformers} filterName={activePlayerName} />
                     </div>
                     <div className="bg-gradient-to-br from-orange-200 via-yellow-100 to-yellow-300 rounded-lg p-3 shadow">
-                      <h2 className="text-lg font-bold mb-2 text-yellow-700">Consistency</h2>
                       <ConsistencyTable players={tournamentData.consistentPlayers} filterName={activePlayerName} />
                     </div>
                   </div>

@@ -1,103 +1,80 @@
 import { Award, Users, BarChart, TrendingUp } from "lucide-react"
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-
-export function StatsCards({ stats, playerName }) {
-  // Mock data for demonstration
-  const mockStats = {
-    totalPlayers: 256,
-    totalTournaments: 12,
-    averageEntrants: 128,
-    upsetRate: "18.5%",
-    playerEvents: 5,
-    playerUpsetRate: "12.3%",
-    playerTotalOpponents: 42,
-    playerSetGetUpsetRate: "5.2%",
-    playerTournaments: 5,
-    playerUnique: 42,
+export function StatsCards({ stats, playerName, isExporting }) {
+  const displayStats = stats || {
+    totalPlayers: 0,
+    totalTournaments: 0,
+    averageEntrants: 0,
+    upsetRate: "0%",
+    playerEvents: 0,
+    playerUnique: 0,
+    playerTournaments: 0,
   }
 
-  const displayStats = stats || mockStats
-
-  // If filtering by player, show only tournaments attended and unique players
+  // For player-specific view (2 cards)
   if (playerName && playerName.trim()) {
-    // Use playerTournaments if available, fallback to playerEvents, then totalTournaments
     const tournamentsAttended =
       displayStats.playerTournaments ?? displayStats.playerEvents ?? displayStats.totalTournaments
-
-    // Use playerUnique if available, fallback to playerTotalOpponents, then totalPlayers
     const uniquePlayers =
       displayStats.playerUnique ?? displayStats.playerTotalOpponents ?? displayStats.totalPlayers
 
     return (
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-2">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Tournaments Attended</CardTitle>
-            <Award className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{tournamentsAttended}</div>
-            <p className="text-xs text-muted-foreground">Events attended by this player</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Unique Players</CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{uniquePlayers}</div>
-            <p className="text-xs text-muted-foreground">Unique players in these tournaments</p>
-          </CardContent>
-        </Card>
+      <div className="grid grid-cols-2 gap-4 w-full">
+        <div className="bg-black rounded border border-gray-800 p-3 shadow-md">
+          <div className="flex items-center justify-between mb-1">
+            <h3 className="text-sm font-bold text-white">Tournaments</h3>
+            <Award className="h-3 w-3 text-gray-400" />
+          </div>
+          <div className="text-xl font-bold text-white">{tournamentsAttended}</div>
+          <p className="text-xs text-gray-400">Events attended</p>
+        </div>
+        <div className="bg-black rounded border border-gray-800 p-3 shadow-md">
+          <div className="flex items-center justify-between mb-1">
+            <h3 className="text-sm font-bold text-white">Unique Players</h3>
+            <Users className="h-3 w-3 text-gray-400" />
+          </div>
+          <div className="text-xl font-bold text-white">{uniquePlayers}</div>
+          <p className="text-xs text-gray-400">Opponents faced</p>
+        </div>
       </div>
     )
   }
 
-  // Otherwise, show normal stats
+  // For general view (4 cards)
   return (
-    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Total Players</CardTitle>
-          <Users className="h-4 w-4 text-muted-foreground" />
-        </CardHeader>
-        <CardContent>
-          <div className="text-2xl font-bold">{displayStats.totalPlayers}</div>
-          <p className="text-xs text-muted-foreground">Unique competitors across all tournaments</p>
-        </CardContent>
-      </Card>
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Tournaments</CardTitle>
-          <Award className="h-4 w-4 text-muted-foreground" />
-        </CardHeader>
-        <CardContent>
-          <div className="text-2xl font-bold">{displayStats.totalTournaments}</div>
-          <p className="text-xs text-muted-foreground">Events in the selected series</p>
-        </CardContent>
-      </Card>
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Avg. Entrants</CardTitle>
-          <BarChart className="h-4 w-4 text-muted-foreground" />
-        </CardHeader>
-        <CardContent>
-          <div className="text-2xl font-bold">{displayStats.averageEntrants}</div>
-          <p className="text-xs text-muted-foreground">Average participants per tournament</p>
-        </CardContent>
-      </Card>
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Upset Rate</CardTitle>
-          <TrendingUp className="h-4 w-4 text-muted-foreground" />
-        </CardHeader>
-        <CardContent>
-          <div className="text-2xl font-bold">{displayStats.upsetRate}</div>
-          <p className="text-xs text-muted-foreground">Lower seeds defeating higher seeds</p>
-        </CardContent>
-      </Card>
+    <div className="grid grid-cols-2 md:grid-cols-4 gap-3 w-full">
+      <div className="bg-black rounded border border-gray-800 p-3 shadow-md">
+        <div className="flex items-center justify-between mb-1">
+          <h3 className="text-sm font-bold text-white">Players</h3>
+          <Users className="h-3 w-3 text-gray-400" />
+        </div>
+        <div className="text-xl font-bold text-white">{displayStats.totalPlayers}</div>
+        <p className="text-xs text-gray-400">Unique competitors</p>
+      </div>
+      <div className="bg-black rounded border border-gray-800 p-3 shadow-md">
+        <div className="flex items-center justify-between mb-1">
+          <h3 className="text-sm font-bold text-white">Tournaments</h3>
+          <Award className="h-3 w-3 text-gray-400" />
+        </div>
+        <div className="text-xl font-bold text-white">{displayStats.totalTournaments}</div>
+        <p className="text-xs text-gray-400">Events in series</p>
+      </div>
+      <div className="bg-black rounded border border-gray-800 p-3 shadow-md">
+        <div className="flex items-center justify-between mb-1">
+          <h3 className="text-sm font-bold text-white">Avg. Entrants</h3>
+          <BarChart className="h-3 w-3 text-gray-400" />
+        </div>
+        <div className="text-xl font-bold text-white">{displayStats.averageEntrants}</div>
+        <p className="text-xs text-gray-400">Per tournament</p>
+      </div>
+      <div className="bg-black rounded border border-gray-800 p-3 shadow-md">
+        <div className="flex items-center justify-between mb-1">
+          <h3 className="text-sm font-bold text-white">Upset Rate</h3>
+          <TrendingUp className="h-3 w-3 text-gray-400" />
+        </div>
+        <div className="text-xl font-bold text-white">{displayStats.upsetRate}</div>
+        <p className="text-xs text-gray-400">Lower > higher seeds</p>
+      </div>
     </div>
   )
 }
