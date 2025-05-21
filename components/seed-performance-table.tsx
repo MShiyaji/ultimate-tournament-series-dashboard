@@ -23,57 +23,59 @@ export function SeedPerformanceTable({ players, filterName }) {
         </div>
         <TrendingUp className="h-5 w-5 text-primary" />
       </CardHeader>
-      <CardContent>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead className="w-12">Rank</TableHead>
-              <TableHead>Player</TableHead>
-              <TableHead className="text-right">Avg. Outperform</TableHead>
-              <TableHead className="text-right">Best Upset Factor</TableHead>
-              <TableHead className="text-right">Events</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {filteredPlayers.map((player) => {
-              // Color avgUpsetFactor: green if positive, red if negative, default otherwise
-              const avg = Number(player.avgUpsetFactor)
-              const avgColor =
-                avg > 0
-                  ? "text-green-700 font-bold"
-                  : avg < 0
-                  ? "text-red-700 font-bold"
-                  : ""
-              // Color bestOutperform: green if positive, red if negative, default otherwise
-              const best = Number(player.bestOutperform)
-              const bestColor =
-                best > 0
-                  ? "text-green-700 font-bold"
-                  : best < 0
-                  ? "text-red-700 font-bold"
-                  : ""
-              // Find the player's overall rank among allPlayers
-              const overallRank = allPlayers.findIndex(p => p.id === player.id) + 1
-              return (
-                <TableRow key={player.id}>
-                  <TableCell className="font-medium">{overallRank}</TableCell>
-                  <TableCell>
-                    <div className="font-medium">{player.name}</div>
-                  </TableCell>
-                  <TableCell className={`text-right font-medium ${avgColor}`}>
-                    {isNaN(avg) ? "-" : avg.toFixed(2)}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <Badge variant="outline" className={bestColor}>
-                      {isNaN(best) ? "-" : best.toFixed(2)}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-right">{player.tournaments}</TableCell>
-                </TableRow>
-              )
-            })}
-          </TableBody>
-        </Table>
+      <CardContent className="px-3">
+        <div className="overflow-x-auto">
+          <Table className="w-full text-sm">
+            <TableHeader>
+              <TableRow>
+                <TableHead className="w-8 px-2">Rank</TableHead>
+                <TableHead className="px-2">Player</TableHead>
+                <TableHead className="text-right px-2 w-24">Avg. Outperf</TableHead>
+                <TableHead className="text-right px-2 w-20">Best UF</TableHead>
+                <TableHead className="text-right px-2 w-14">Events</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {filteredPlayers.map((player) => {
+                // Color avgUpsetFactor: green if positive, red if negative, default otherwise
+                const avg = Number(player.avgUpsetFactor)
+                const avgColor =
+                  avg > 0
+                    ? "text-green-700 font-bold"
+                    : avg < 0
+                    ? "text-red-700 font-bold"
+                    : ""
+                // Color bestOutperform: green if positive, red if negative, default otherwise
+                const best = Number(player.bestOutperform)
+                const bestColor =
+                  best > 0
+                    ? "text-green-700 font-bold"
+                    : best < 0
+                    ? "text-red-700 font-bold"
+                    : ""
+                // Find the player's overall rank among allPlayers
+                const overallRank = allPlayers.findIndex(p => p.id === player.id) + 1
+                return (
+                  <TableRow key={player.id}>
+                    <TableCell className="font-medium px-2">{overallRank}</TableCell>
+                    <TableCell className="px-2">
+                      <div className="font-medium">{player.name}</div>
+                    </TableCell>
+                    <TableCell className={`text-right font-medium ${avgColor} px-2`}>
+                      {isNaN(avg) ? "-" : avg.toFixed(2)}
+                    </TableCell>
+                    <TableCell className="text-right px-2">
+                      <span className={bestColor}>
+                        {isNaN(best) ? "-" : best.toFixed(2)}
+                      </span>
+                    </TableCell>
+                    <TableCell className="text-right px-2">{player.tournaments}</TableCell>
+                  </TableRow>
+                )
+              })}
+            </TableBody>
+          </Table>
+        </div>
       </CardContent>
     </Card>
   )

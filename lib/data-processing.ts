@@ -397,13 +397,7 @@ export function processberkeleyData(data: { tournaments: any }, playerName?: str
     const risingStars = [...validPlayers]
       .filter(
         (p) =>
-          p.tournaments >= Math.max(attendanceRatio * tournaments.length, 2) &&
-          (
-            playerName
-              ? true
-              : !topPerformers.slice(0, 5).some((topPlayer) => topPlayer.id === p.id)
-          )
-      )
+          p.tournaments >= Math.max(attendanceRatio * tournaments.length, 2))
       .sort((a, b) => b.improvementScore - a.improvementScore || b.tournaments - a.tournaments)
       .map((p) => ({
         ...p,

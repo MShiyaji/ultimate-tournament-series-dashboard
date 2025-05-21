@@ -32,15 +32,14 @@ function InfoPopover({ text }: { text: string }) {
   )
 }
 
-export function TopPerformersTable({ players, filterName }) {
-  // Mock data for demonstration
+export function TopPerformersTable({ players, filterName}) {
+  const displayPlayers = players; // fallback if not provided
 
-  const displayPlayers = players
   const filteredPlayers = filterName?.trim()
     ? displayPlayers.filter((p) =>
         p.name?.toLowerCase().includes(filterName.trim().toLowerCase())
       )
-    : displayPlayers.slice(0, 5) // Only show top 5 if no filter
+    : displayPlayers.slice(0, 5);
 
   return (
     <Card>
@@ -51,49 +50,51 @@ export function TopPerformersTable({ players, filterName }) {
         </div>
         <Trophy className="h-5 w-5 text-primary" />
       </CardHeader>
-      <CardContent>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead className="w-12">Rank</TableHead>
-              <TableHead>Player</TableHead>
-              <TableHead className="text-right">Performance Score</TableHead>
-              <TableHead className="text-right">Best Placement</TableHead>
-              <TableHead className="text-right">Events</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {filteredPlayers.map((player) => {
-              // Find the player's overall rank in the full list
-              const overallRank = displayPlayers.findIndex(p => p.id === player.id) + 1
+      <CardContent className="px-3">
+        <div className="overflow-x-auto">
+          <Table className="w-full text-sm">
+            <TableHeader>
+              <TableRow>
+                <TableHead className="w-8 px-2">Rank</TableHead>
+                <TableHead className="px-2">Player</TableHead>
+                <TableHead className="text-right px-2 w-24">Perf. Score</TableHead>
+                <TableHead className="text-right px-2 w-20">Best Place</TableHead>
+                <TableHead className="text-right px-2 w-14">Events</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {filteredPlayers.map((player) => {
+                // Find the player's overall rank in the full list
+                const overallRank = displayPlayers.findIndex(p => p.id === player.id) + 1;
 
-              // Medal colors for top 3
-              let medalColor = ""
-              if (overallRank === 1) medalColor = "#FFD700" // Gold
-              else if (overallRank === 2) medalColor = "#C0C0C0" // Silver
-              else if (overallRank === 3) medalColor = "#CD7F32" // Bronze
+                // Medal colors for top 3
+                let medalColor = "";
+                if (overallRank === 1) medalColor = "#FFD700";
+                else if (overallRank === 2) medalColor = "#C0C0C0";
+                else if (overallRank === 3) medalColor = "#CD7F32";
 
-              return (
-                <TableRow key={player.id}>
-                  <TableCell className="font-medium">
-                    <span style={overallRank <= 3 ? { color: medalColor, fontWeight: 700 } : {}}>
-                      {overallRank}
-                    </span>
-                  </TableCell>
-                  <TableCell>
-                    <div className="font-medium">{player.name}</div>
-                  </TableCell>
-                  <TableCell className="text-right">{player.performanceScore || player.averageNormalizedPlacement}</TableCell>
-                  <TableCell className="text-right">
-                    <span className="font-medium">{player.bestPlacement}</span>
-                  </TableCell>
-                  <TableCell className="text-right">{player.tournaments}</TableCell>
-                </TableRow>
-              )
-            })}
-          </TableBody>
-        </Table>
+                return (
+                  <TableRow key={player.id}>
+                    <TableCell className="font-medium px-2">
+                      <span style={overallRank <= 3 ? { color: medalColor, fontWeight: 700 } : {}}>
+                        {overallRank}
+                      </span>
+                    </TableCell>
+                    <TableCell className="px-2">
+                      <div className="font-medium">{player.name}</div>
+                    </TableCell>
+                    <TableCell className="text-right px-2">{player.performanceScore || player.averageNormalizedPlacement}</TableCell>
+                    <TableCell className="text-right px-2">
+                      <span className="font-medium">{player.bestPlacement}</span>
+                    </TableCell>
+                    <TableCell className="text-right px-2">{player.tournaments}</TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
+        </div>
       </CardContent>
     </Card>
-  )
+  );
 }

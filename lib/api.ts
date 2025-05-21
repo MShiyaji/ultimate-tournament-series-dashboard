@@ -2,13 +2,13 @@ import { S3Client, GetObjectCommand } from "@aws-sdk/client-s3";
 
 const API_URL = "https://api.start.gg/gql/alpha";
 const s3 = new S3Client({
-  region: process.env.AWS_REGION || "us-east-1",
+  region: process.env.AWS_REGION || "us-east-2",
   credentials: {
     accessKeyId: process.env.AWS_ACCESS_KEY_ID!,
     secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY!,
   },
 });
-const BUCKET_NAME = process.env.AWS_BUCKET_NAME || "ultimate-tournament-dashboard";
+const BUCKET_NAME = "ultimate-tournament-data";
 const CACHE_KEY = "basic-cache.json";
 
 async function downloadCacheFromS3() {
@@ -42,38 +42,7 @@ function createAdaptiveDelay(initial = 0, min = 0, max = 5000, step = 100) {
 
 const STARTGG_API_KEYS = (process.env.STARTGG_API_KEYS || "").split(",").map(k => k.trim()).filter(Boolean);
 
-const setsQuery = `
-  query PhaseGroupSets($phaseGroupId: ID!, $page: Int!) {
-    phaseGroup(id: $phaseGroupId) {
-      id
-      sets(perPage: 25, page: $page) {
-        nodes {
-          id
-          round
-          winnerId
-          slots {
-            entrant {
-              id
-              name
-              initialSeedNum
-              participants {
-                player {
-                  id
-                  gamerTag
-                }
-              }
-            }
-          }
-        }
-        pageInfo {
-          totalPages
-        }
-      }
-    }
-  }
-`;
-
-const standingsQuery = `
+const eventStandingsQuery = `
   query EventStandings($eventId: ID!) {
     event(id: $eventId) {
       id
@@ -96,6 +65,15 @@ const standingsQuery = `
   }
 `;
 
+function getApiKeyRotator(keys: string[]) {
+  let idx = 0;
+  return () => {
+    const key = keys[idx];
+    idx = (idx + 1) % keys.length;
+    return key;
+  };
+}
+
 async function fetchFromAPI(query: string, variables: Record<string, any>, apiKey: string, adaptiveDelay?: ReturnType<typeof createAdaptiveDelay>, retries = 3): Promise<any> {
   let lastError;
   for (let attempt = 0; attempt <= retries; attempt++) {
@@ -112,7 +90,7 @@ async function fetchFromAPI(query: string, variables: Record<string, any>, apiKe
       const errorText = await response.text();
       if (response.status === 429) {
         if (adaptiveDelay) adaptiveDelay.increase();
-        await delay(60000);
+        await delay(1000);
         lastError = new Error(`API request failed with status ${response.status}: ${errorText}`);
         continue;
       }
@@ -126,6 +104,15 @@ async function fetchFromAPI(query: string, variables: Record<string, any>, apiKe
     return data.data;
   }
   throw lastError || new Error("API request failed after retries");
+}
+
+// Helper to split an array into N chunks
+function chunkArray<T>(array: T[], n: number): T[][] {
+  const chunks = Array.from({ length: n }, () => []);
+  array.forEach((item, i) => {
+    chunks[i % n].push(item);
+  });
+  return chunks;
 }
 
 export async function fetchberkeleyTournaments(
@@ -143,10 +130,9 @@ export async function fetchberkeleyTournaments(
     throw new Error("Failed to load tournament cache");
   }
 
-  // Use the detailed tournaments cache
   let tournaments = cacheData.tournaments?.nodes || [];
 
-  // 1. Pre-filter tournaments by date and seriesInputs BEFORE making API calls
+  // 1. Filter tournaments by date
   const start = new Date(startDate);
   const end = new Date(endDate);
 
@@ -156,6 +142,7 @@ export async function fetchberkeleyTournaments(
     return tournamentDate >= start && tournamentDate <= end;
   });
 
+  // 2. Filter by seriesInputs (series name or primary contact)
   if (seriesInputs && seriesInputs.length > 0) {
     tournaments = tournaments.filter(tournament => {
       return seriesInputs.some(input => {
@@ -174,94 +161,58 @@ export async function fetchberkeleyTournaments(
     });
   }
 
+  // 3. Filter events to only those with "singles" in the name
+  tournaments = tournaments.map(tournament => ({
+    ...tournament,
+    events: (tournament.events || []).filter(
+      (event: any) => event.name && event.name.toLowerCase().includes("singles")
+    ),
+  })).filter(t => t.events.length > 0);
+
+  // 4. Split tournaments among API keys for parallel standings queries
+  const apiKeyCount = STARTGG_API_KEYS.length;
+  const tournamentChunks = chunkArray(tournaments, apiKeyCount);
+
+  await Promise.all(
+    tournamentChunks.map(async (tChunk, idx) => {
+      const apiKey = STARTGG_API_KEYS[idx];
+      for (const tournament of tChunk) {
+        for (const event of tournament.events) {
+          try {
+            const data = await fetchFromAPI(
+              eventStandingsQuery,
+              { eventId: event.id },
+              apiKey
+            );
+            event.standings = data?.event?.standings || { nodes: [] };
+          } catch (err) {
+            event.standings = { nodes: [] };
+            console.error(`❌ Failed to fetch standings for event ${event.id}:`, err);
+          }
+        }
+      }
+    })
+  );
+
+  // 5. If playerName is provided, filter out events and tournaments that don't have standings for the player,
+  // but do NOT filter the standings nodes themselves.
   if (playerName) {
     const lowerPlayerName = playerName.trim().toLowerCase();
-    tournaments = tournaments.filter(tournament =>
-      tournament.events.some(event =>
-        event.standings?.nodes?.some(
-          (standing: any) =>
-            standing.entrant?.participants?.some(
-              (participant: any) =>
-                participant.player?.gamerTag?.toLowerCase() === lowerPlayerName
-            )
-        )
-      )
-    );
-  }
-
-  // After filtering tournaments and events...
-  for (const tournament of tournaments) {
-    for (const event of tournament.events) {
-      // Fetch standings for this event
-      const apiKey = STARTGG_API_KEYS[0]; // or rotate if needed
-      const data = await fetchFromAPI(
-        standingsQuery,
-        { eventId: event.id },
-        apiKey
-      );
-      event.standings = data?.event?.standings || { nodes: [] };
-    }
-  }
-
-  // If no playerName, return the cached tournaments as is (with sets already included)
-  if (!playerName) {
-    return { tournaments: { nodes: tournaments } };
-  }
-
-  // If playerName is provided, filter sets for the player (using cached sets)
-  const lowerPlayerName = playerName.trim().toLowerCase();
-  const filteredTournaments = tournaments.map(tournament => {
-    const filteredEvents = [];
-    for (const event of tournament.events || []) {
-      const filteredPhases = [];
-      for (const phase of event.phases || []) {
-        const filteredPhaseGroups = [];
-        for (const group of (phase.phaseGroups?.nodes || [])) {
-          // If sets are not cached, fetch them now (shouldn't happen if cache is up to date)
-          let sets = (group.sets?.nodes || []);
-          // If sets are missing, fetch and cache them on the fly
-          if (!sets.length) {
-            // Optionally, you could fetch sets here using setsQuery and add them to the group
-            // For now, skip groups with no sets
-            continue;
-          }
-          const filteredSets = sets.filter(set =>
-            set.slots?.some(slot =>
-              slot.entrant?.participants?.some(
+    tournaments = tournaments.map(tournament => ({
+      ...tournament,
+      events: tournament.events
+        .filter(event =>
+          (event.standings?.nodes || []).some(
+            (standing: any) =>
+              standing.entrant?.participants?.some(
                 (participant: any) =>
                   participant.player?.gamerTag?.toLowerCase() === lowerPlayerName
               )
-            )
-          );
-          if (filteredSets.length > 0) {
-            filteredPhaseGroups.push({
-              ...group,
-              sets: { nodes: filteredSets }
-            });
-          }
-        }
-        if (filteredPhaseGroups.length > 0) {
-          filteredPhases.push({
-            ...phase,
-            phaseGroups: { nodes: filteredPhaseGroups }
-          });
-        }
-      }
-      if (filteredPhases.length > 0) {
-        filteredEvents.push({
-          ...event,
-          phases: filteredPhases
-        });
-      }
-    }
-    if (filteredEvents.length > 0) {
-      return {
-        ...tournament,
-        events: filteredEvents
-      };
-    }
-    return null;
-  }).filter(Boolean);
+          )
+        )
+    }))
+    .filter(t => t.events.length > 0);
+  }
 
-  return { tournaments: { nodes: filteredTournaments } };
+  return { tournaments: { nodes: tournaments } };
 }

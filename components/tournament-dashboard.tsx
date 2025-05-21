@@ -18,37 +18,6 @@ import { MiniConsistencyTable } from "./mini-consistency-table"
 import { MiniRisingStarsTable } from "./mini-rising-stars-table"
 import { extractSeriesName } from "@/lib/utils"
 
-// Helper component for info popover
-function InfoPopover({ text }: { text: string }) {
-  const [open, setOpen] = useState(false)
-  return (
-    <span
-      className="relative inline-block ml-1 align-middle"
-      onMouseEnter={() => setOpen(true)}
-      onMouseLeave={() => setOpen(false)}
-      tabIndex={0}
-    >
-      <button
-        type="button"
-        aria-label="Info"
-        className="text-gray-400 hover:text-gray-600 focus:outline-none p-0 m-0"
-        tabIndex={-1}
-        style={{ lineHeight: 0 }}
-      >
-        <Info className="inline h-3 w-3" />
-      </button>
-      {open && (
-        <div
-          className="absolute z-20 left-full top-0 -translate-y-full ml-2 w-72 rounded-md bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-700 shadow-lg p-3 text-xs text-gray-800 dark:text-gray-200"
-          style={{ minWidth: "16rem", maxWidth: "20rem", whiteSpace: "normal" }}
-        >
-          {text}
-        </div>
-      )}
-    </span>
-  )
-}
-
 export function TournamentDashboard() {
   const today = new Date()
   const sixMonthsAgo = subMonths(today, 4)
@@ -261,34 +230,42 @@ export function TournamentDashboard() {
   };
 
   return (
-    <div className="container mx-auto py-6 space-y-8">
+    <div className="container mx-auto px-4 py-4 md:py-6 space-y-4 md:space-y-8">
       <DashboardHeader title={"Smash Ultimate Tournament Dashboard"} />
 
       <div className="flex flex-col gap-4 items-stretch">
         {/* Find Series Section */}
-        <div className="mb-4">
-          <h3 className="font-semibold text-2xl mb-3">Find Series</h3>
+        <div className="mb-3 md:mb-4">
+          <h3 className="font-semibold text-xl md:text-2xl mb-2 md:mb-3">Find Series</h3>
           {seriesInputs.map((input, idx) => (
-            <div key={idx} className="flex gap-2 mb-2">
+            <div key={idx} className="flex flex-col sm:flex-row gap-2 mb-3">
               <input
                 type="text"
-                placeholder={`Tournament Series Name #${idx + 1}`}
+                placeholder={`Series Name #${idx + 1}`}
                 value={input.tournamentSeriesName}
                 onChange={e => handleSeriesInputChange(idx, "tournamentSeriesName", e.target.value)}
-                className="w-1/2 border rounded px-4 py-3 text-base"
+                className="w-full sm:w-1/2 border rounded px-3 py-2 text-sm md:text-base"
               />
-              <input
-                type="text"
-                placeholder={`Primary Contact #${idx + 1} (optional)`}
-                value={input.primaryContact}
-                onChange={e => handleSeriesInputChange(idx, "primaryContact", e.target.value)}
-                className="w-1/2 border rounded px-4 py-3 text-base"
-              />
+              <div className="relative w-full sm:w-1/2 mt-1 sm:mt-0">
+                <input
+                  type="text"
+                  placeholder={`Primary Contact #${idx + 1} (optional)`}
+                  value={input.primaryContact}
+                  onChange={e => handleSeriesInputChange(idx, "primaryContact", e.target.value)}
+                  className="w-full border rounded px-3 py-2 text-sm md:text-base"
+                />
+                <div className="absolute right-3 top-1/2 -translate-y-1/2 group cursor-help">
+                  <Info className="h-4 w-4 text-gray-400" />
+                  <div className="absolute bottom-full -left-1/2 mb-2 hidden group-hover:block bg-white dark:bg-zinc-800 p-2 rounded shadow-lg border border-gray-200 dark:border-zinc-700 w-64 text-xs text-gray-600 dark:text-gray-300 z-10">
+                    Primary contact is used when you want to include a tournament within a series that might not have the keyword in it (Ex. Finals Destination in the Berkeley Tournament Series)
+                  </div>
+                </div>
+              </div>
               {seriesInputs.length > 1 && (
                 <button
                   type="button"
                   onClick={() => removeSeriesInput(idx)}
-                  className="text-red-500 text-xs ml-2"
+                  className="text-red-500 text-xs sm:ml-2 mt-1 sm:mt-0"
                 >
                   Remove
                 </button>
@@ -307,20 +284,25 @@ export function TournamentDashboard() {
         </div>
 
         {/* Filters Section */}
-        <div className="mb-2 bg-gray-100 dark:bg-zinc-900 rounded-lg p-4">
+        <div className="mb-2 bg-gray-100 dark:bg-zinc-900 rounded-lg p-3 md:p-4">
           <h3 className="font-semibold text-base mb-2">Filters</h3>
-          <div className="flex flex-col md:flex-row md:gap-4">
+          <div className="flex flex-col gap-3">
             {/* Player Name + Attendance Ratio */}
-            <div className="flex flex-1 flex-row gap-2 mb-2 md:mb-0">
-              <div className="flex flex-col w-1/2">
+            <div className="flex flex-col sm:flex-row gap-2">
+              <div className="w-full sm:w-1/2">
                 <span className="text-xs font-medium mb-1 flex items-center">
                   Player Tag
-                  <InfoPopover text="Filter results to only show data for a specific player tag (case-insensitive). Auto-complete if Series Name is inputted." />
+                  <div className="relative inline-block ml-1 align-middle group cursor-help">
+                    <Info className="h-4 w-4 text-gray-400" />
+                    <div className="absolute bottom-full -left-1/2 mb-2 hidden group-hover:block bg-white dark:bg-zinc-800 p-2 rounded shadow-lg border border-gray-200 dark:border-zinc-700 w-64 text-xs text-gray-600 dark:text-gray-300 z-10">
+                      Filter results to only show data for a specific player tag (case-insensitive). Auto-complete if Series Name is inputted.
+                    </div>
+                  </div>
                 </span>
                 <div className="relative">
                   <input
                     type="text"
-                    placeholder="Optional: Filter by Player Tag (ex. Lui$)"
+                    placeholder="Optional: Filter by Player Tag"
                     value={playerName}
                     onChange={e => {
                       const value = e.target.value;
@@ -365,10 +347,15 @@ export function TournamentDashboard() {
                   )}
                 </div>
               </div>
-              <div className="flex flex-col w-1/2">
+              <div className="w-full sm:w-1/2">
                 <span className="text-xs font-medium mb-1 flex items-center">
                   Attendance Threshold (%)
-                  <InfoPopover text="Minimum percent of tournaments a player must attend to be included in stats. Default is 25%." />
+                  <div className="relative inline-block ml-1 align-middle group cursor-help">
+                    <Info className="h-4 w-4 text-gray-400" />
+                    <div className="absolute bottom-full -left-1/2 mb-2 hidden group-hover:block bg-white dark:bg-zinc-800 p-2 rounded shadow-lg border border-gray-200 dark:border-zinc-700 w-64 text-xs text-gray-600 dark:text-gray-300 z-10">
+                      Minimum percent of tournaments a player must attend to be included in stats. Default is 25%.
+                    </div>
+                  </div>
                 </span>
                 <input
                   type="number"
@@ -392,12 +379,17 @@ export function TournamentDashboard() {
               </div>
             </div>
             {/* Date Range Selector */}
-            <div>
-              <div className="flex flex-1 flex-row gap-2">
-                <div className="flex flex-col w-1/2">
+            <div className="flex flex-col gap-2">
+              <div className="flex flex-col sm:flex-row gap-2">
+                <div className="w-full sm:w-1/2">
                   <span className="text-xs font-medium mb-1 flex items-center">
                     Start Date
-                    <InfoPopover text="Only tournaments starting on or after this date will be included." />
+                    <div className="relative inline-block ml-1 align-middle group cursor-help">
+                      <Info className="h-4 w-4 text-gray-400" />
+                      <div className="absolute bottom-full -left-1/2 mb-2 hidden group-hover:block bg-white dark:bg-zinc-800 p-2 rounded shadow-lg border border-gray-200 dark:border-zinc-700 w-64 text-xs text-gray-600 dark:text-gray-300 z-10">
+                        Only tournaments starting on or after this date will be included.
+                      </div>
+                    </div>
                   </span>
                   <input
                     type="date"
@@ -407,10 +399,15 @@ export function TournamentDashboard() {
                     className="border rounded px-3 py-2 text-sm w-full h-10"
                   />
                 </div>
-                <div className="flex flex-col w-1/2">
+                <div className="w-full sm:w-1/2">
                   <span className="text-xs font-medium mb-1 flex items-center">
                     End Date
-                    <InfoPopover text="Only tournaments ending on or before this date will be included." />
+                    <div className="relative inline-block ml-1 align-middle group cursor-help">
+                      <Info className="h-4 w-4 text-gray-400" />
+                      <div className="absolute bottom-full -left-1/2 mb-2 hidden group-hover:block bg-white dark:bg-zinc-800 p-2 rounded shadow-lg border border-gray-200 dark:border-zinc-700 w-64 text-xs text-gray-600 dark:text-gray-300 z-10">
+                        Only tournaments ending on or before this date will be included.
+                      </div>
+                    </div>
                   </span>
                   <input
                     type="date"
@@ -421,12 +418,12 @@ export function TournamentDashboard() {
                   />
                 </div>
               </div>
-              {/* Seasonal Presets BELOW date range selector, not in a flex row with the date inputs */}
-              <div className="flex flex-row gap-2 mt-2">
-                <div className="flex flex-col">
+              {/* Seasonal Presets */}
+              <div className="flex flex-row gap-2 mt-1">
+                <div className="flex flex-col w-1/2">
                   <span className="text-xs font-medium mb-1">Season</span>
                   <select
-                    className="border rounded px-3 py-2"
+                    className="border rounded px-2 py-2 text-sm"
                     value={selectedSeason}
                     onChange={e => {
                       setSelectedSeason(e.target.value);
@@ -439,10 +436,10 @@ export function TournamentDashboard() {
                     ))}
                   </select>
                 </div>
-                <div className="flex flex-col">
+                <div className="flex flex-col w-1/2">
                   <span className="text-xs font-medium mb-1">Year</span>
                   <select
-                    className="border rounded px-3 py-2"
+                    className="border rounded px-2 py-2 text-sm"
                     value={selectedYear}
                     onChange={e => {
                       setSelectedYear(e.target.value);
@@ -461,11 +458,11 @@ export function TournamentDashboard() {
         </div>
 
         {/* Centered Update Data & Download JPG Buttons */}
-        <div className="flex flex-col md:flex-row gap-2 justify-center items-center my-4">
+        <div className="flex flex-col sm:flex-row gap-2 justify-center items-center my-3 md:my-4">
           <Button
             onClick={fetchData}
             disabled={isLoading || !dateRange.start || !dateRange.end}
-            className="w-full md:w-auto"
+            className="w-full sm:w-auto"
           >
             {isLoading ? (
               <>
@@ -483,8 +480,7 @@ export function TournamentDashboard() {
                   abortControllerRef.current.abort();
                 }
               }}
-              className="px-4 py-2 rounded bg-red-600 text-white font-semibold shadow hover:bg-red-700 transition w-full md:w-auto"
-              style={{ marginLeft: "0.5rem" }}
+              className="px-4 py-2 rounded bg-red-600 text-white font-semibold shadow hover:bg-red-700 transition w-full sm:w-auto text-sm"
             >
               Cancel Update
             </button>
@@ -492,7 +488,7 @@ export function TournamentDashboard() {
           {showDownload && (
             <button
               onClick={handleDownloadJPG}
-              className="px-4 py-2 rounded bg-blue-600 text-white font-semibold shadow hover:bg-blue-700 transition w-full md:w-auto"
+              className="px-4 py-2 rounded bg-blue-600 text-white font-semibold shadow hover:bg-blue-700 transition w-full sm:w-auto text-sm"
             >
               Download Dashboard as JPG
             </button>
@@ -502,8 +498,9 @@ export function TournamentDashboard() {
 
       {/* Loading Spinner */}
       {isLoading && (
-        <div className="flex justify-center items-center h-64">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+        <div className="flex flex-col justify-center items-center h-64">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mb-4"></div>
+          <p className="text-gray-500 text-sm">Querying tournaments...</p>
         </div>
       )}
 
@@ -539,133 +536,145 @@ export function TournamentDashboard() {
         {isExporting ? (
           // --- EXPORT LAYOUT (for JPG only) ---
           <div
-            className="bg-black min-h-screen p-8 flex flex-col items-center"
-            style={{ maxWidth: "1600px", minHeight: "900px", width: "100vw", height: "100vh", margin: "0 auto" }}
+            className="bg-black p-8 flex flex-col items-center justify-center"
+            style={{ 
+              width: "100%", 
+              height: "100%", 
+              margin: "0 auto",
+              boxSizing: "border-box"
+            }}
           >
-            {/* Export Title */}
-            {activePlayerName && activePlayerName.trim() && (
-              <h1 className="text-3xl font-bold text-white mb-6 text-center">
-                {activePlayerName}'s{" "}
-                {seriesInputs
-                  .map((input) =>
-                    input.tournamentSeriesName
-                      ? input.tournamentSeriesName
-                          .split(" ")
-                          .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-                          .join(" ")
-                      : ""
-                  )
-                  .filter(Boolean)
-                  .join(", ")}{" "}
-                Stats
-              </h1>
-            )}
-
+            {/* Export Title - Show for both player-specific and general dashboards */}
+            <h1 className="text-3xl font-bold text-white mb-2 text-center w-full">
+              {activePlayerName && activePlayerName.trim() ? (
+                // Player-specific title
+                <>
+                  {activePlayerName}'s{" "}
+                  {seriesInputs
+                    .map((input) =>
+                      input.tournamentSeriesName
+                        ? input.tournamentSeriesName
+                            .split(" ")
+                            .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+                            .join(" ")
+                        : ""
+                    )
+                    .filter(Boolean)
+                    .join(", ")}{" "}
+                  Stats
+                </>
+              ) : (
+                // General title (no player name)
+                <>
+                  {seriesInputs
+                    .map((input) =>
+                      input.tournamentSeriesName
+                        ? input.tournamentSeriesName
+                            .split(" ")
+                            .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+                            .join(" ")
+                        : ""
+                    )
+                    .filter(Boolean)
+                    .join(", ")}{" "}
+                  Stats
+                </>
+              )}
+            </h1>
+            
+            {/* Date Timeline - Added Below Title */}
+            <div className="text-gray-300 text-sm mb-4 text-center w-full">
+              {new Date(dateRange.start).toLocaleDateString('en-US', {
+                month: 'short',
+                day: 'numeric',
+                year: 'numeric'
+              })}{" "}
+              -{" "}
+              {new Date(dateRange.end).toLocaleDateString('en-US', {
+                month: 'short',
+                day: 'numeric',
+                year: 'numeric'
+              })}
+            </div>
             {/* Stats Cards */}
-            <div className="mt-0">
+            <div className="w-full max-w-5xl mx-auto mb-4">
               <StatsCards
-                stats={tournamentData.summary} playerName={activePlayerName}
+                stats={tournamentData.summary} playerName={activePlayerName
+                }
               />
             </div>
+            
             {/* Tables: 2x2 grid, all gray/white text on black */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-0 w-full max-w-5xl mx-auto">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full max-w-5xl mx-auto">
               {/* Top Performers */}
-              <div className="rounded-2xl p-4 ">
+              <div className="p-3">
                 <MiniTopPerformersTable
                   players={tournamentData.topPerformers}
                   filterName={activePlayerName}
                 />
               </div>
               {/* Rising Stars */}
-              <div className="rounded-2xl p-4 ">
+              <div className="p-3">
                 <MiniRisingStarsTable
                   players={tournamentData.risingStars}
                   filterName={activePlayerName}
                 />
               </div>
               {/* Seed Overperformers */}
-              <div className="rounded-2xl p-4 ">
+              <div className="p-3">
                 <MiniSeedPerformanceTable
                   players={tournamentData.seedOutperformers}
                   filterName={activePlayerName}
                 />
               </div>
               {/* Most Consistent */}
-              <div className="rounded-2xl p-4 ">
+              <div className="p-3">
                 <MiniConsistencyTable
                   players={tournamentData.consistentPlayers}
                   filterName={activePlayerName}
                 />
               </div>
             </div>
-            {/* Queried Tournaments */}
-            {tournamentData?.tournamentNames && tournamentData?.tournamentNames.length > 0 && tournamentData?.tournamentSlugs && (
-              <div className="mt-12 w-full max-w-5xl mx-auto">
-                <h2 className="text-2xl font-bold mb-2 text-center text-white">Queried Tournaments</h2>
-                <ul className="pl-0 space-y-1">
-                  {tournamentData.tournamentNames.map((name, index) => (
-                    <li key={index} className="text-lg text-white list-none">
-                      {tournamentData.tournamentSlugs && tournamentData.tournamentSlugs[index] ? (
-                        <a
-                          href={`https://www.start.gg/${tournamentData.tournamentSlugs[index]}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="hover:underline text-white"
-                        >
-                          {name}
-                        </a>
-                      ) : (
-                        name
-                      )}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
           </div>
         ) : (
           // --- NORMAL DASHBOARD LAYOUT ---
           <>
             {!isLoading && tournamentData && !noData && (
               <>
-                <div className="space-y-8 rounded-lg shadow-lg p-6 mt-0">
-                  {/* Filters Section */}
-                  {/* Remove the colored bar and margin above stats cards */}
+                <div className="space-y-4 md:space-y-8 rounded-lg shadow-lg p-3 md:p-6 mt-0">
                   {/* Stats Cards */}
                   <div className="mt-0">
                     <StatsCards stats={tournamentData.summary} playerName={activePlayerName} />
                   </div>
                   {/* Top Performers & Rising Stars */}
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    <div className="bg-gradient-to-br from-yellow-200 via-pink-100 to-pink-300 rounded-lg p-4 shadow">
-                      <h2 className="text-lg font-bold mb-2 text-pink-700 print-or-jpg:block hidden">Top Performers</h2>
+                  <div className="grid grid-cols-1 gap-4 md:gap-6">
+                    <div className="bg-gradient-to-br from-yellow-200 via-pink-100 to-pink-300 rounded-lg p-3 shadow">
+                      <h2 className="text-lg font-bold mb-2 text-pink-700">Top Performers</h2>
                       <TopPerformersTable players={tournamentData.topPerformers} filterName={activePlayerName} />
                     </div>
-                    <div className="bg-gradient-to-br from-blue-200 via-green-100 to-green-300 rounded-lg p-4 shadow">
-                      <h2 className="text-lg font-bold mb-2 text-green-700 print-or-jpg:block hidden">Rising Stars</h2>
+                    <div className="bg-gradient-to-br from-blue-200 via-green-100 to-green-300 rounded-lg p-3 shadow">
+                      <h2 className="text-lg font-bold mb-2 text-green-700">Rising Stars</h2>
                       <RisingStarsTable players={tournamentData.risingStars} filterName={activePlayerName} />
                     </div>
-                  </div>
-                  {/* Seed Outperformers & Consistency */}
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    <div className="bg-gradient-to-br from-purple-200 via-indigo-100 to-indigo-300 rounded-lg p-4 shadow">
-                      <h2 className="text-lg font-bold mb-2 text-indigo-700 print-or-jpg:block hidden">Seed Outperformers</h2>
+                    <div className="bg-gradient-to-br from-purple-200 via-indigo-100 to-indigo-300 rounded-lg p-3 shadow">
+                      <h2 className="text-lg font-bold mb-2 text-indigo-700">Seed Outperformers</h2>
                       <SeedPerformanceTable players={tournamentData.seedOutperformers} filterName={activePlayerName} />
                     </div>
-                    <div className="bg-gradient-to-br from-orange-200 via-yellow-100 to-yellow-300 rounded-lg p-4 shadow">
-                      <h2 className="text-lg font-bold mb-2 text-yellow-700 print-or-jpg:block hidden">Consistency</h2>
+                    <div className="bg-gradient-to-br from-orange-200 via-yellow-100 to-yellow-300 rounded-lg p-3 shadow">
+                      <h2 className="text-lg font-bold mb-2 text-yellow-700">Consistency</h2>
                       <ConsistencyTable players={tournamentData.consistentPlayers} filterName={activePlayerName} />
                     </div>
                   </div>
+                  
                   {/* Tournament Names */}
                   {tournamentData?.tournamentNames && tournamentData?.tournamentNames.length > 0 && tournamentData?.tournamentSlugs && (
-                    <div className="mt-8 w-full max-w-6xl">
-                      <h2 className="text-lg font-semibold mb-4 text-blue-700">
+                    <div className="mt-6 w-full">
+                      <h2 className="text-base md:text-lg font-semibold mb-2 md:mb-4 text-blue-700">
                         Queried Tournaments
                       </h2>
-                      <ul className="list-disc pl-5 space-y-1">
+                      <ul className="list-disc pl-4 space-y-1 text-xs md:text-sm">
                         {tournamentData.tournamentNames.map((name, index) => (
-                          <li key={index} className="text-sm text-muted-foreground">
+                          <li key={index} className="text-muted-foreground">
                             {tournamentData.tournamentSlugs && tournamentData.tournamentSlugs[index] ? (
                               <a
                                 href={`https://www.start.gg/${tournamentData.tournamentSlugs[index]}`}

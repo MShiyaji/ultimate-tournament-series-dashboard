@@ -19,7 +19,7 @@ const s3 = new S3Client({
   },
 });
 
-const BUCKET_NAME = "ultimate-tournament-dashboard";
+const BUCKET_NAME = "ultimate-tournament-data";
 const CACHE_KEY = "basic-cache.json";
 
 const basicQuery = `
@@ -41,6 +41,7 @@ const basicQuery = `
         name
         slug
         startAt
+        primaryContact
         events(filter: { videogameId: 1386 }) {
           id
           name
