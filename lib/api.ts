@@ -73,6 +73,29 @@ const setsQuery = `
   }
 `;
 
+const standingsQuery = `
+  query EventStandings($eventId: ID!) {
+    event(id: $eventId) {
+      id
+      standings(query: { perPage: 128 }) {
+        nodes {
+          placement
+          entrant {
+            id
+            initialSeedNum
+            participants {
+              player {
+                id
+                gamerTag
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+`;
+
 async function fetchFromAPI(query: string, variables: Record<string, any>, apiKey: string, adaptiveDelay?: ReturnType<typeof createAdaptiveDelay>, retries = 3): Promise<any> {
   let lastError;
   for (let attempt = 0; attempt <= retries; attempt++) {
@@ -164,6 +187,20 @@ export async function fetchberkeleyTournaments(
         )
       )
     );
+  }
+
+  // After filtering tournaments and events...
+  for (const tournament of tournaments) {
+    for (const event of tournament.events) {
+      // Fetch standings for this event
+      const apiKey = STARTGG_API_KEYS[0]; // or rotate if needed
+      const data = await fetchFromAPI(
+        standingsQuery,
+        { eventId: event.id },
+        apiKey
+      );
+      event.standings = data?.event?.standings || { nodes: [] };
+    }
   }
 
   // If no playerName, return the cached tournaments as is (with sets already included)

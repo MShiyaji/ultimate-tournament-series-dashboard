@@ -39,31 +39,12 @@ const basicQuery = `
       nodes {
         id
         name
-        primaryContact
-        startAt
         slug
-        numAttendees
+        startAt
         events(filter: { videogameId: 1386 }) {
           id
           name
           numEntrants
-          videogame { id }
-          standings(query: { perPage: 128 }) {
-            nodes {
-              placement
-              entrant {
-                id
-                name
-                initialSeedNum
-                participants {
-                  player {
-                    id
-                    gamerTag
-                  }
-                }
-              }
-            }
-          }
         }
       }
     }

@@ -1,4 +1,4 @@
-import { Award, TrendingUp, BarChart, Users, ArrowDownCircle } from "lucide-react"
+import { Award, Users, BarChart, TrendingUp } from "lucide-react"
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 
@@ -14,61 +14,41 @@ export function StatsCards({ stats, playerName }) {
     playerTotalOpponents: 42,
     playerSetGetUpsetRate: "5.2%",
     playerTournaments: 5,
-    playerUnique: 42, // Add this for demonstration
+    playerUnique: 42,
   }
 
   const displayStats = stats || mockStats
 
-  // If filtering by player, show player-specific stats
+  // If filtering by player, show only tournaments attended and unique players
   if (playerName && playerName.trim()) {
     // Use playerTournaments if available, fallback to playerEvents, then totalTournaments
-    const eventsAttended =
-      displayStats.playerTournaments
+    const tournamentsAttended =
+      displayStats.playerTournaments ?? displayStats.playerEvents ?? displayStats.totalTournaments
 
     // Use playerUnique if available, fallback to playerTotalOpponents, then totalPlayers
-    const uniqueOpponents =
-      displayStats.playerUnique 
+    const uniquePlayers =
+      displayStats.playerUnique ?? displayStats.playerTotalOpponents ?? displayStats.totalPlayers
 
     return (
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-2">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Events Attended</CardTitle>
+            <CardTitle className="text-sm font-medium">Tournaments Attended</CardTitle>
             <Award className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{eventsAttended}</div>
+            <div className="text-2xl font-bold">{tournamentsAttended}</div>
             <p className="text-xs text-muted-foreground">Events attended by this player</p>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Player Upset Rate</CardTitle>
-            <TrendingUp className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{displayStats.playerSetUpsetRate}</div>
-            <p className="text-xs text-muted-foreground">Sets won vs higher seeds</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Player Get-Upset Rate</CardTitle>
-            <ArrowDownCircle className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{displayStats.playerSetGetUpsetRate ?? "0%"}</div>
-            <p className="text-xs text-muted-foreground">Sets lost vs lower seeds</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Unique Opponents</CardTitle>
+            <CardTitle className="text-sm font-medium">Total Unique Players</CardTitle>
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{uniqueOpponents}</div>
-            <p className="text-xs text-muted-foreground">Unique players faced</p>
+            <div className="text-2xl font-bold">{uniquePlayers}</div>
+            <p className="text-xs text-muted-foreground">Unique players in these tournaments</p>
           </CardContent>
         </Card>
       </div>
