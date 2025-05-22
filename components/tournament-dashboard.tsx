@@ -258,7 +258,12 @@ export function TournamentDashboard() {
 
   return (
     <div className="container mx-auto px-4 py-4 md:py-6 space-y-4 md:space-y-8">
-      <DashboardHeader title={"Smash Ultimate Tournament Dashboard"} />
+      <div className="relative">
+        <DashboardHeader title={"Smash Ultimate Tournament Dashboard"} />
+        <div className="absolute top-0 right-0 text-xs text-gray-500 mt-1 mr-1">
+          Made for the community by @Murthrox
+        </div>
+      </div>
 
       <div className="flex flex-col gap-4 items-stretch">
         {/* Find Series Section */}
