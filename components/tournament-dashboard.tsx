@@ -301,6 +301,27 @@ export function TournamentDashboard() {
         </div>
       </div>
 
+      {/* Feedback Button */}
+      <div className="flex justify-center mb-3">
+        <a
+          href="https://forms.gle/N9X1Uo96eN4AjJTd6"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="px-4 py-2 rounded bg-green-600 text-white font-medium text-sm shadow hover:bg-green-700 transition flex items-center"
+        >
+          <svg 
+            xmlns="http://www.w3.org/2000/svg" 
+            className="h-4 w-4 mr-2" 
+            fill="none" 
+            viewBox="0 0 24 24" 
+            stroke="currentColor"
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" />
+          </svg>
+          Submit Feedback
+        </a>
+      </div>
+
       <div className="flex flex-col gap-4 items-stretch">
         {/* Find Series Section */}
         <div className="mb-3 md:mb-4">
