@@ -74,25 +74,52 @@ function createAdaptiveDelay(initial = 200, min = 0, max = 5000, step = 100) {
   };
 }
 
-async function fetchFromAPI(query: string, variables: Record<string, any>, apiKey: string) {
-  const response = await fetch(API_URL, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${apiKey}`,
-    },
-    body: JSON.stringify({ query, variables }),
-  });
+async function fetchFromAPI(query: string, variables: Record<string, any>, apiKey: string, retries = 3) {
+  for (let attempt = 1; attempt <= retries; attempt++) {
+    try {
+      // Add timeout to prevent hanging requests
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+      
+      const response = await fetch(API_URL, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify({ query, variables }),
+        signal: controller.signal
+      });
+      
+      clearTimeout(timeoutId);
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        if (response.status === 429) {
+          console.log(`⚠️ Rate limit hit, waiting longer before retry (attempt ${attempt}/${retries})`);
+          await delay(10000 * attempt); // Progressive backoff
+          continue;
+        }
+        throw new Error(`API request failed with status ${response.status}: ${errorText}`);
+      }
 
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`API request failed with status ${response.status}: ${errorText}`);
+      const data = await response.json();
+      if (data.errors) throw new Error(data.errors.map((e: any) => e.message).join(", "));
+
+      return data.data;
+    } catch (error) {
+      if (error.name === 'AbortError') {
+        console.log(`⏱️ Request timed out (attempt ${attempt}/${retries})`);
+      } else {
+        console.error(`❌ API error (attempt ${attempt}/${retries}):`, error.message);
+      }
+      
+      if (attempt === retries) throw error;
+      
+      // Add exponential backoff
+      await delay(Math.min(2000 * Math.pow(2, attempt), 30000));
+    }
   }
-
-  const data = await response.json();
-  if (data.errors) throw new Error(data.errors.map((e: any) => e.message).join(", "));
-
-  return data.data;
 }
 
 // Download
@@ -134,6 +161,10 @@ function getApiKeyRotator(keys: string[]) {
 }
 
 async function cacheBasicTournaments() {
+  // Set a maximum runtime for GitHub Actions
+  const startTime = Date.now();
+  const MAX_RUNTIME_MS = 4 * 60 * 1000; // 4 minutes (under GH Actions 5 min timeout)
+  
   let existingTournaments: any[] = [];
   let startFromScratch = false;
   try {
@@ -151,7 +182,7 @@ async function cacheBasicTournaments() {
     console.log("🔄 Building complete cache from 2018 to present");
   } else {
     startDate = new Date();
-    startDate.setDate(startDate.getDate() - 1);
+    startDate.setDate(startDate.getDate() - 2);
     startDate.setHours(0, 0, 0, 0);
     console.log(`🔄 Updating cache with tournaments from ${startDate.toLocaleDateString()}`);
   }
@@ -187,12 +218,24 @@ async function cacheBasicTournaments() {
     dateChunkGroups.map(async (chunks, idx) => {
       const apiKey = STARTGG_API_KEYS[idx];
       for (const { start, end } of chunks) {
+        // Check if we're approaching the time limit
+        if (Date.now() - startTime > MAX_RUNTIME_MS) {
+          console.log("⏱️ Approaching GitHub Actions timeout limit, saving progress and exiting");
+          break;
+        }
+        
         const chunkStartTimestamp = Math.floor(start.getTime() / 1000);
         const chunkEndTimestamp = Math.floor(end.getTime() / 1000);
 
         let page = 1;
         let totalPages = 1;
+        const maxPagesToFetch = process.env.GITHUB_ACTIONS ? 5 : totalPages;
         do {
+          // Add a heartbeat log to prevent timeouts
+          if (page % 3 === 0) {
+            console.log(`💓 Still processing - Key ${idx + 1}, Page ${page}/${totalPages}`);
+          }
+          
           await delay(1000);
           try {
             const result = await fetchFromAPI(basicQuery, {
@@ -205,9 +248,16 @@ async function cacheBasicTournaments() {
             totalPages = result?.tournaments?.pageInfo?.totalPages || 1;
 
             for (const tournament of tournaments) {
+              // Validate the tournament has a valid ID
+              if (!tournament.id) {
+                console.warn("⚠️ Skipping tournament without ID:", tournament.name || "Unknown");
+                continue;
+              }
+              
+              // Ensure it's not already in our set (already synchronized for deduplication)
               if (!existingIds.has(tournament.id)) {
                 newTournaments.push(tournament);
-                existingIds.add(tournament.id);
+                existingIds.add(tournament.id); // Immediately mark as processed
               }
             }
 
@@ -221,39 +271,57 @@ async function cacheBasicTournaments() {
               break;
             }
           }
-        } while (page <= totalPages);
+        } while (page <= totalPages && page <= maxPagesToFetch);
       }
     })
   );
 
-  if (newTournaments.length === 0) {
-    console.log("ℹ️ No new tournaments found. Cache is up to date.");
-    return;
-  }
+  if (newTournaments.length > 0) {
+    console.log(`📦 Found ${newTournaments.length} new tournaments. Updating cache...`);
+    
+    // Create deduplicated merged array by using tournament ID as the key
+    const tournamentMap = new Map();
+    
+    // First add existing tournaments to the map
+    for (const tournament of existingTournaments) {
+      if (tournament.id) {
+        tournamentMap.set(tournament.id, tournament);
+      }
+    }
+    
+    // Then add new tournaments, overwriting any with the same ID
+    for (const tournament of newTournaments) {
+      if (tournament.id) {
+        tournamentMap.set(tournament.id, tournament);
+      }
+    }
+    
+    // Convert map back to array
+    const basicTournaments = Array.from(tournamentMap.values());
+    
+    // Save to S3
+    const cacheData = {
+      tournaments: { nodes: basicTournaments }
+    };
 
-  console.log(`📦 Found ${newTournaments.length} new tournaments. Updating cache...`);
-
-  // After fetching all pages, just use the tournaments array:
-  const basicTournaments = [...existingTournaments, ...newTournaments];
-
-  // Save to S3
-  const cacheData = {
-    tournaments: { nodes: basicTournaments }
-  };
-
-  try {
-    await uploadCache(cacheData);
-    console.log(`✅ Cache updated! Now contains ${basicTournaments.length} tournaments`);
-  } catch (uploadError) {
-    console.error("❌ Failed to upload to S3:", uploadError);
+    console.log(`ℹ️ After deduplication: ${basicTournaments.length} total tournaments (${basicTournaments.length - existingTournaments.length} added)`);
 
     try {
-      const fs = require('fs');
-      fs.writeFileSync('./tournament-cache-backup.json', JSON.stringify(cacheData));
-      console.log("⚠️ Saved to local backup file instead: ./tournament-cache-backup.json");
-    } catch (fsError) {
-      console.error("❌ Even local backup failed:", fsError);
+      await uploadCache(cacheData);
+      console.log(`✅ Cache updated! Now contains ${basicTournaments.length} tournaments`);
+    } catch (uploadError) {
+      console.error("❌ Failed to upload to S3:", uploadError);
+
+      try {
+        const fs = require('fs');
+        fs.writeFileSync('./tournament-cache-backup.json', JSON.stringify(cacheData));
+        console.log("⚠️ Saved to local backup file instead: ./tournament-cache-backup.json");
+      } catch (fsError) {
+        console.error("❌ Even local backup failed:", fsError);
+      }
     }
+  } else {
+    console.log("ℹ️ No new tournaments found. Cache is up to date.");
   }
 }
 

@@ -2,12 +2,13 @@ name: Daily Tournament Cache
 
 on:
   schedule:
-    - cron: '1 7 * * *'  # every day at 8 AM UTC
+    - cron: '1 9 * * *' 
   workflow_dispatch:
 
 jobs:
   update-cache:
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
       - name: Checkout repo
         uses: actions/checkout@v3
@@ -28,3 +29,4 @@ jobs:
           AWS_REGION: ${{ secrets.AWS_REGION }}
           AWS_BUCKET_NAME: ${{ secrets.AWS_BUCKET_NAME }}
           STARTGG_API_KEYS: ${{ secrets.STARTGG_API_KEYS }}
+          GITHUB_ACTIONS: 'true'
