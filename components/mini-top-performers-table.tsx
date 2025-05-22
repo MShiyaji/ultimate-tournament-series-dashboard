@@ -19,7 +19,8 @@ export function MiniTopPerformersTable({ players, filterName }) {
           <thead className="text-gray-300 bg-gray-900">
             <tr>
               <th className="w-5 text-left py-1 px-1 border-b border-gray-700">#</th>
-              <th className="text-left py-1 px-1 w-[60%] border-b border-gray-700">Player</th>
+              <th className="text-left py-1 px-1 w-[38%] border-b border-gray-700">Player</th>
+              <th className="text-right py-1 px-1 w-[25%] border-b border-gray-700">Events</th>
               <th className="text-right py-1 px-1 border-b border-gray-700">Score</th>
             </tr>
           </thead>
@@ -38,7 +39,10 @@ export function MiniTopPerformersTable({ players, filterName }) {
                       {overallRank}
                     </span>
                   </td>
-                  <td className="py-1 px-1 font-medium truncate" style={{maxWidth: "120px"}}>{player.name}</td>
+                  <td className="py-1 px-1 font-medium truncate" style={{maxWidth: "90px"}}>{player.name}</td>
+                  <td className="py-1 px-1 text-right">
+                    {player.tournaments || player.events || player.numEvents || "N/A"}
+                  </td>
                   <td className="text-right py-1 px-1">
                     {player.performanceScore || player.averageNormalizedPlacement}
                   </td>
