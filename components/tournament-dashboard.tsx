@@ -66,6 +66,10 @@ export function TournamentDashboard() {
   const [selectedSeason, setSelectedSeason] = useState("");
   const [selectedYear, setSelectedYear] = useState("");
 
+  const [queryCooldown, setQueryCooldown] = useState(false);
+  const [cooldownRemaining, setCooldownRemaining] = useState(0);
+  const COOLDOWN_SECONDS = 5;
+
   const handleSeasonPreset = (season, year) => {
     if (!season || !year) return;
     const preset = SEASON_PRESETS.find((s) => s.value === season);
@@ -99,7 +103,29 @@ export function TournamentDashboard() {
     setSeriesInputs(inputs => inputs.filter((_, i) => i !== idx));
   };
 
+  useEffect(() => {
+    let timer: NodeJS.Timeout;
+    
+    if (queryCooldown && cooldownRemaining > 0) {
+      timer = setTimeout(() => {
+        setCooldownRemaining(prev => {
+          if (prev <= 1) {
+            setQueryCooldown(false);
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    }
+    
+    return () => {
+      if (timer) clearTimeout(timer);
+    };
+  }, [queryCooldown, cooldownRemaining]);
+
   const fetchData = async () => {
+    if (queryCooldown) return; // Prevent query if in cooldown
+    
     if (!dateRange.start || !dateRange.end || seriesInputs.every(s => !s.tournamentSeriesName.trim() && !s.primaryContact.trim())) {
       setError("Please select a date range and enter at least one tournament series name or primary contact");
       return;
@@ -181,12 +207,22 @@ export function TournamentDashboard() {
     } catch (err) {
       if (err.name === "AbortError" || err.message === "Update cancelled by user") {
         setError("Update cancelled.");
+      } else if (
+        err.message.includes("429") || 
+        err.message.includes("rate limit") || 
+        err.message.includes("Too Many Requests")
+      ) {
+        setError("The service is experiencing high traffic. Please try again in a few minutes.");
       } else {
         console.error("Error fetching tournament data:", err);
         setError("Failed to load tournament data: " + (err.message || "Unknown error"));
       }
     } finally {
       setIsLoading(false);
+      
+      // Set cooldown after query completes
+      setQueryCooldown(true);
+      setCooldownRemaining(COOLDOWN_SECONDS);
     }
   }
 
@@ -493,12 +529,16 @@ export function TournamentDashboard() {
         <div className="flex flex-col sm:flex-row gap-2 justify-center items-center my-3 md:my-4">
           <Button
             onClick={fetchData}
-            disabled={isLoading || !dateRange.start || !dateRange.end}
+            disabled={isLoading || !dateRange.start || !dateRange.end || queryCooldown}
             className="w-full sm:w-auto"
           >
             {isLoading ? (
               <>
                 <RefreshCw className="mr-2 h-4 w-4 animate-spin" /> Loading...
+              </>
+            ) : queryCooldown ? (
+              <>
+                <RefreshCw className="mr-2 h-4 w-4" /> Wait {cooldownRemaining}s
               </>
             ) : (
               "Update Data"
@@ -543,9 +583,17 @@ export function TournamentDashboard() {
           <AlertTitle>Error</AlertTitle>
           <AlertDescription>
             {error}
-            {error.toLowerCase().includes("rate limit") && (
+            {(error.toLowerCase().includes("rate limit") || 
+              error.toLowerCase().includes("high traffic") || 
+              error.toLowerCase().includes("429")) && (
               <div className="mt-2 text-xs text-muted-foreground">
-                The API is currently overloaded. Please wait a minute and try again. If this happens repeatedly, try narrowing your date range or reducing the number of series.
+                <p className="font-medium mb-1">Suggestions:</p>
+                <ul className="list-disc pl-5 space-y-1">
+                  <li>Wait a few minutes before trying again</li>
+                  <li>Try narrowing your date range (select fewer months)</li>
+                  <li>Reduce the number of tournament series</li>
+                  <li>Try during non-peak hours sorry :(</li>
+                </ul>
               </div>
             )}
           </AlertDescription>
