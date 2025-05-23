@@ -296,7 +296,12 @@ export function TournamentDashboard() {
     <div className="container mx-auto px-4 py-4 md:py-6 space-y-4 md:space-y-8">
       <div className="relative">
         <DashboardHeader title={"Smash Ultimate Tournament Dashboard"} />
-        <div className="absolute top-0 right-0 text-xs text-gray-500 mt-1 mr-1">
+        {/* Below version shows on mobile, hidden on medium screens and up */}
+        <div className="text-center text-[10px] text-gray-500 mt-1 md:hidden">
+          Made for the community by @Murthrox
+        </div>
+        {/* This version is hidden on mobile, shows on medium screens and up */}
+        <div className="absolute top-0 right-0 text-xs text-gray-500 mt-1 mr-2 hidden md:block">
           Made for the community by @Murthrox
         </div>
       </div>
