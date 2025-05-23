@@ -30,9 +30,9 @@ export function SeedPerformanceTable({ players, filterName }) {
               <TableRow>
                 <TableHead className="w-8 px-2">Rank</TableHead>
                 <TableHead className="px-2">Player</TableHead>
-                <TableHead className="text-right px-2 w-24">Avg. Outperf</TableHead>
-                <TableHead className="text-right px-2 w-20">Best UF</TableHead>
-                <TableHead className="text-right px-2 w-14">Events</TableHead>
+                <TableHead className="text-right px-2 w-24">Avg. UF</TableHead>
+                <TableHead className="text-right px-2 w-20 hidden md:table-cell">Best UF</TableHead>
+                <TableHead className="text-right px-2 w-14 hidden sm:table-cell">Events</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -60,16 +60,19 @@ export function SeedPerformanceTable({ players, filterName }) {
                     <TableCell className="font-medium px-2">{overallRank}</TableCell>
                     <TableCell className="px-2">
                       <div className="font-medium">{player.name}</div>
+                      <div className="text-xs text-gray-500 sm:hidden">
+                        Events: {player.tournaments}
+                      </div>
                     </TableCell>
                     <TableCell className={`text-right font-medium ${avgColor} px-2`}>
                       {isNaN(avg) ? "-" : avg.toFixed(2)}
                     </TableCell>
-                    <TableCell className="text-right px-2">
+                    <TableCell className="text-right px-2 hidden md:table-cell">
                       <span className={bestColor}>
                         {isNaN(best) ? "-" : best.toFixed(2)}
                       </span>
                     </TableCell>
-                    <TableCell className="text-right px-2">{player.tournaments}</TableCell>
+                    <TableCell className="text-right px-2 hidden sm:table-cell">{player.tournaments}</TableCell>
                   </TableRow>
                 )
               })}

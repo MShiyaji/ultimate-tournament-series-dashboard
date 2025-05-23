@@ -31,8 +31,8 @@ export function ConsistencyTable({ players, filterName }) {
                 <TableHead className="w-8 px-2">Rank</TableHead>
                 <TableHead className="px-2">Player</TableHead>
                 <TableHead className="text-right px-2 w-20">Consistency</TableHead>
-                <TableHead className="text-right px-2 w-14">Events</TableHead>
-                <TableHead className="text-right px-2 w-16">Variance</TableHead>
+                <TableHead className="text-right px-2 w-14 hidden sm:table-cell">Events</TableHead>
+                <TableHead className="text-right px-2 w-16 hidden md:table-cell">Variance</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -49,6 +49,9 @@ export function ConsistencyTable({ players, filterName }) {
                     <TableCell className="font-medium px-2">{overallRank}</TableCell>
                     <TableCell className="px-2">
                       <div className="font-medium">{player.name}</div>
+                      <div className="text-xs text-gray-500 sm:hidden">
+                        Events: {player.tournaments}
+                      </div>
                     </TableCell>
                     <TableCell className="text-right px-2">
                       {consistencyValue > 90 ? (
@@ -57,8 +60,8 @@ export function ConsistencyTable({ players, filterName }) {
                         <span className="font-medium text-white">{player.consistency}</span>
                       )}
                     </TableCell>
-                    <TableCell className="text-right px-2">{player.tournaments}</TableCell>
-                    <TableCell className="text-right px-2">{player.seedVariance ?? player.upsetFactorVariance}</TableCell>
+                    <TableCell className="text-right px-2 hidden sm:table-cell">{player.tournaments}</TableCell>
+                    <TableCell className="text-right px-2 hidden md:table-cell">{player.seedVariance ?? player.upsetFactorVariance}</TableCell>
                   </TableRow>
                 )
               })}

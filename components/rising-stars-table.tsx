@@ -42,15 +42,15 @@ export function RisingStarsTable({ players, filterName }) {
       </CardHeader>
       <CardContent>
         <div className="overflow-x-auto">
-          <Table className="min-w-[520px] w-full text-sm">
+          <Table className="w-full text-sm">
             <TableHeader>
               <TableRow>
                 <TableHead className="w-8 px-2">Rank</TableHead>
                 <TableHead className="px-2">Player</TableHead>
                 <TableHead className="text-right px-2 w-24">Improvement</TableHead>
-                <TableHead className="text-right px-2 w-20">Early Avg</TableHead>
-                <TableHead className="text-right px-2 w-20">Late Avg</TableHead>
-                <TableHead className="text-right px-2 w-16">Events</TableHead>
+                <TableHead className="text-right px-2 w-20 hidden md:table-cell">Early Avg</TableHead>
+                <TableHead className="text-right px-2 w-20 hidden md:table-cell">Late Avg</TableHead>
+                <TableHead className="text-right px-2 w-16 hidden sm:table-cell">Events</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -68,19 +68,24 @@ export function RisingStarsTable({ players, filterName }) {
                 return (
                   <TableRow key={player.id || player.name}>
                     <TableCell className="font-medium px-2">{overallRank}</TableCell>
-                    <TableCell className="px-2">{player.name}</TableCell>
+                    <TableCell className="px-2">
+                      <div className="font-medium">{player.name}</div>
+                      <div className="text-xs text-gray-500 sm:hidden">
+                        Events: {player.tournaments}
+                      </div>
+                    </TableCell>
                     <TableCell className={`text-right px-2 ${improvementColor}`}>
                       {improvement.toFixed(3)}
                     </TableCell>
-                    <TableCell className="text-right px-2">
+                    <TableCell className="text-right px-2 hidden md:table-cell">
                       {Number(player.earlyAvg).toFixed(3)}
                     </TableCell>
-                    <TableCell className="text-right px-2">
+                    <TableCell className="text-right px-2 hidden md:table-cell">
                       <Badge variant="outline">
                         {Number(player.lateAvg).toFixed(3)}
                       </Badge>
                     </TableCell>
-                    <TableCell className="text-right px-2">{player.tournaments}</TableCell>
+                    <TableCell className="text-right px-2 hidden sm:table-cell">{player.tournaments}</TableCell>
                   </TableRow>
                 )
               })}

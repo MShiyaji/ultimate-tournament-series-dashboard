@@ -58,8 +58,8 @@ export function TopPerformersTable({ players, filterName}) {
                 <TableHead className="w-8 px-2">Rank</TableHead>
                 <TableHead className="px-2">Player</TableHead>
                 <TableHead className="text-right px-2 w-24">Perf. Score</TableHead>
-                <TableHead className="text-right px-2 w-20">Best Place</TableHead>
-                <TableHead className="text-right px-2 w-14">Events</TableHead>
+                <TableHead className="text-right px-2 w-20 hidden md:table-cell">Best Place</TableHead>
+                <TableHead className="text-right px-2 w-14 hidden sm:table-cell">Events</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -82,12 +82,15 @@ export function TopPerformersTable({ players, filterName}) {
                     </TableCell>
                     <TableCell className="px-2">
                       <div className="font-medium">{player.name}</div>
+                      <div className="text-xs text-gray-500 sm:hidden">
+                        Events: {player.tournaments}
+                      </div>
                     </TableCell>
                     <TableCell className="text-right px-2">{player.performanceScore || player.averageNormalizedPlacement}</TableCell>
-                    <TableCell className="text-right px-2">
+                    <TableCell className="text-right px-2 hidden md:table-cell">
                       <span className="font-medium">{player.bestPlacement}</span>
                     </TableCell>
-                    <TableCell className="text-right px-2">{player.tournaments}</TableCell>
+                    <TableCell className="text-right px-2 hidden sm:table-cell">{player.tournaments}</TableCell>
                   </TableRow>
                 );
               })}
