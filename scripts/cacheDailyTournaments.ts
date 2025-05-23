@@ -143,7 +143,9 @@ async function uploadCache(data: any) {
 
 export async function fetchCachedBasicTournaments(): Promise<any[]> {
   try {
-    return await downloadCache();
+    const cacheData = await downloadCache();
+    // Extract the tournaments array from the cache structure
+    return cacheData?.tournaments?.nodes || [];
   } catch (error) {
     console.error("❌ Failed to read from S3 cache:", error);
     throw new Error("Failed to load cached tournaments");
@@ -169,7 +171,15 @@ async function cacheBasicTournaments() {
   let startFromScratch = false;
   try {
     existingTournaments = await fetchCachedBasicTournaments();
-    console.log(`📊 Found existing cache with ${existingTournaments.length} tournaments`);
+    
+    // Verify we got an array back
+    if (!Array.isArray(existingTournaments)) {
+      console.log("⚠️ Cache returned non-array data. Treating as empty array.");
+      existingTournaments = [];
+      startFromScratch = true;
+    } else {
+      console.log(`📊 Found existing cache with ${existingTournaments.length} tournaments`);
+    }
   } catch (error) {
     console.log("ℹ️ No existing cache found or error accessing it. Creating from scratch.");
     startFromScratch = true;
