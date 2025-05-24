@@ -187,14 +187,42 @@ async function cacheBasicTournaments() {
 
   let startDate: Date;
   const endDate = new Date();
+  const now = new Date();
+  
   if (startFromScratch) {
     startDate = new Date("2018-01-01");
     console.log("🔄 Building complete cache from 2018 to present");
   } else {
-    startDate = new Date();
-    startDate.setDate(startDate.getDate() - 2);
-    startDate.setHours(0, 0, 0, 0);
-    console.log(`🔄 Updating cache with tournaments from ${startDate.toLocaleDateString()}`);
+    // First check: Near past (for tournament dates)
+    const recentStartDate = new Date();
+    recentStartDate.setDate(recentStartDate.getDate() - 2);
+    recentStartDate.setHours(0, 0, 0, 0);
+    
+    // Also check a 30-day lookback once a week
+    // to catch backdated tournaments that were added recently
+    const dayOfWeek = now.getDay(); // 0 = Sunday, 6 = Saturday
+    const doExtendedLookback = dayOfWeek === 6; // On Sunday, do extended lookback
+    
+    if (doExtendedLookback) {
+      // Look back 60 days once a week
+      startDate = new Date();
+      startDate.setDate(startDate.getDate() - 60);
+      startDate.setHours(0, 0, 0, 0);
+      console.log(`🔍 Performing weekly extended 60-day lookback from ${startDate.toLocaleDateString()}`);
+    } else {
+      // Regular 2-day lookback
+      startDate = recentStartDate;
+      console.log(`🔄 Updating cache with tournaments from ${startDate.toLocaleDateString()}`);
+    }
+    
+    // Also do monthly deep lookback to catch any very old tournaments
+    const isFirstOfMonth = now.getDate() === 1;
+    if (isFirstOfMonth) {
+      console.log("📅 First day of month - performing 6-month deep lookback");
+      startDate = new Date();
+      startDate.setMonth(startDate.getMonth() - 6);
+      startDate.setHours(0, 0, 0, 0);
+    }
   }
 
   const chunkSizeDays = startFromScratch ? 21 : 1;
