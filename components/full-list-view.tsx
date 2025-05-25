@@ -4,6 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { ArrowLeft, Trophy, TrendingUp, Target } from "lucide-react"
+import { useIsMobile } from "@/hooks/use-mobile"
 
 interface FullListViewProps {
   data: {
@@ -18,6 +19,7 @@ interface FullListViewProps {
 export function FullListView({ data, onGoBack, filterName }: FullListViewProps) {
   const [currentPage, setCurrentPage] = useState(1);
   const playersPerPage = 20;
+  const isMobile = useIsMobile();
 
   if (!data) return null;
 
@@ -52,11 +54,11 @@ export function FullListView({ data, onGoBack, filterName }: FullListViewProps) 
           <Table className="w-full text-sm">
             <TableHeader>
               <TableRow>
-                <TableHead className="w-16">Rank</TableHead>
-                <TableHead>Player</TableHead>
-                <TableHead className="text-right">Performance Score</TableHead>
-                <TableHead className="text-right">Best Placement</TableHead>
-                <TableHead className="text-right">Events</TableHead>
+                <TableHead className={isMobile ? "w-12 px-2" : "w-16"}>Rank</TableHead>
+                <TableHead className={isMobile ? "px-2" : ""}>Player</TableHead>
+                {!isMobile && <TableHead className="text-right">Performance Score</TableHead>}
+                {!isMobile && <TableHead className="text-right">Best Placement</TableHead>}
+                <TableHead className={`text-right ${isMobile ? "w-16" : ""}`}>Events</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -69,15 +71,33 @@ export function FullListView({ data, onGoBack, filterName }: FullListViewProps) 
 
                 return (
                   <TableRow key={player.id || index}>
-                    <TableCell className="font-medium">
+                    <TableCell className={`font-medium ${isMobile ? "px-2" : ""}`}>
                       <span style={rank <= 3 ? { color: medalColor, fontWeight: 700 } : {}}>
                         {rank}
                       </span>
                     </TableCell>
-                    <TableCell className="font-medium">{player.name}</TableCell>
-                    <TableCell className="text-right">{player.performanceScore || player.averageNormalizedPlacement}</TableCell>
-                    <TableCell className="text-right">{player.bestPlacement}</TableCell>
-                    <TableCell className="text-right">{player.tournaments}</TableCell>
+                    <TableCell className={`font-medium ${isMobile ? "px-2" : ""}`}>
+                      <div>{player.name}</div>
+                      {isMobile && (
+                        <div className="text-xs text-gray-500">
+                          Score: {player.performanceScore || player.averageNormalizedPlacement}
+                          {player.bestPlacement && (
+                            <span className="ml-2">Best: {player.bestPlacement}</span>
+                          )}
+                        </div>
+                      )}
+                    </TableCell>
+                    {!isMobile && (
+                      <TableCell className="text-right">
+                        {player.performanceScore || player.averageNormalizedPlacement}
+                      </TableCell>
+                    )}
+                    {!isMobile && (
+                      <TableCell className="text-right">{player.bestPlacement}</TableCell>
+                    )}
+                    <TableCell className={`text-right ${isMobile ? "px-2" : ""}`}>
+                      {player.tournaments}
+                    </TableCell>
                   </TableRow>
                 );
               })}
@@ -90,12 +110,12 @@ export function FullListView({ data, onGoBack, filterName }: FullListViewProps) 
           <Table className="w-full text-sm">
             <TableHeader>
               <TableRow>
-                <TableHead className="w-16">Rank</TableHead>
-                <TableHead>Player</TableHead>
-                <TableHead className="text-right">Improvement</TableHead>
-                <TableHead className="text-right">Early Avg</TableHead>
-                <TableHead className="text-right">Late Avg</TableHead>
-                <TableHead className="text-right">Events</TableHead>
+                <TableHead className={isMobile ? "w-12 px-2" : "w-16"}>Rank</TableHead>
+                <TableHead className={isMobile ? "px-2" : ""}>Player</TableHead>
+                {!isMobile && <TableHead className="text-right">Improvement</TableHead>}
+                {!isMobile && <TableHead className="text-right">Early Avg</TableHead>}
+                {!isMobile && <TableHead className="text-right">Late Avg</TableHead>}
+                <TableHead className={`text-right ${isMobile ? "w-16" : ""}`}>Events</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -111,16 +131,40 @@ export function FullListView({ data, onGoBack, filterName }: FullListViewProps) 
 
                 return (
                   <TableRow key={player.id || index}>
-                    <TableCell className="font-medium">{rank}</TableCell>
-                    <TableCell className="font-medium">{player.name}</TableCell>
-                    <TableCell className={`text-right ${improvementColor}`}>
-                      {improvement.toFixed(3)}
+                    <TableCell className={`font-medium ${isMobile ? "px-2" : ""}`}>
+                      {rank}
                     </TableCell>
-                    <TableCell className="text-right">{Number(player.earlyAvg).toFixed(3)}</TableCell>
-                    <TableCell className="text-right">
-                      <Badge variant="outline">{Number(player.lateAvg).toFixed(3)}</Badge>
+                    <TableCell className={`font-medium ${isMobile ? "px-2" : ""}`}>
+                      <div>{player.name}</div>
+                      {isMobile && (
+                        <div className="text-xs text-gray-500">
+                          <span className={improvementColor}>
+                            +{improvement.toFixed(3)}
+                          </span>
+                          <span className="ml-2 text-gray-400">
+                            {Number(player.earlyAvg).toFixed(2)} → {Number(player.lateAvg).toFixed(2)}
+                          </span>
+                        </div>
+                      )}
                     </TableCell>
-                    <TableCell className="text-right">{player.tournaments}</TableCell>
+                    {!isMobile && (
+                      <TableCell className={`text-right ${improvementColor}`}>
+                        {improvement.toFixed(3)}
+                      </TableCell>
+                    )}
+                    {!isMobile && (
+                      <TableCell className="text-right">
+                        {Number(player.earlyAvg).toFixed(3)}
+                      </TableCell>
+                    )}
+                    {!isMobile && (
+                      <TableCell className="text-right">
+                        <Badge variant="outline">{Number(player.lateAvg).toFixed(3)}</Badge>
+                      </TableCell>
+                    )}
+                    <TableCell className={`text-right ${isMobile ? "px-2" : ""}`}>
+                      {player.tournaments}
+                    </TableCell>
                   </TableRow>
                 );
               })}
@@ -133,11 +177,11 @@ export function FullListView({ data, onGoBack, filterName }: FullListViewProps) 
           <Table className="w-full text-sm">
             <TableHeader>
               <TableRow>
-                <TableHead className="w-16">Rank</TableHead>
-                <TableHead>Player</TableHead>
-                <TableHead className="text-right">Avg. Upset Factor</TableHead>
-                <TableHead className="text-right">Best Upset Factor</TableHead>
-                <TableHead className="text-right">Events</TableHead>
+                <TableHead className={isMobile ? "w-12 px-2" : "w-16"}>Rank</TableHead>
+                <TableHead className={isMobile ? "px-2" : ""}>Player</TableHead>
+                {!isMobile && <TableHead className="text-right">Avg. Upset Factor</TableHead>}
+                {!isMobile && <TableHead className="text-right">Best Upset Factor</TableHead>}
+                <TableHead className={`text-right ${isMobile ? "w-16" : ""}`}>Events</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -160,15 +204,35 @@ export function FullListView({ data, onGoBack, filterName }: FullListViewProps) 
 
                 return (
                   <TableRow key={player.id || index}>
-                    <TableCell className="font-medium">{rank}</TableCell>
-                    <TableCell className="font-medium">{player.name}</TableCell>
-                    <TableCell className={`text-right ${avgColor}`}>
-                      {isNaN(avg) ? "-" : avg.toFixed(2)}
+                    <TableCell className={`font-medium ${isMobile ? "px-2" : ""}`}>
+                      {rank}
                     </TableCell>
-                    <TableCell className={`text-right ${bestColor}`}>
-                      {isNaN(best) ? "-" : best.toFixed(2)}
+                    <TableCell className={`font-medium ${isMobile ? "px-2" : ""}`}>
+                      <div>{player.name}</div>
+                      {isMobile && (
+                        <div className="text-xs text-gray-500">
+                          <span className={avgColor}>
+                            Avg: {isNaN(avg) ? "-" : avg.toFixed(2)}
+                          </span>
+                          <span className={`ml-2 ${bestColor}`}>
+                            Best: {isNaN(best) ? "-" : best.toFixed(2)}
+                          </span>
+                        </div>
+                      )}
                     </TableCell>
-                    <TableCell className="text-right">{player.tournaments}</TableCell>
+                    {!isMobile && (
+                      <TableCell className={`text-right ${avgColor}`}>
+                        {isNaN(avg) ? "-" : avg.toFixed(2)}
+                      </TableCell>
+                    )}
+                    {!isMobile && (
+                      <TableCell className={`text-right ${bestColor}`}>
+                        {isNaN(best) ? "-" : best.toFixed(2)}
+                      </TableCell>
+                    )}
+                    <TableCell className={`text-right ${isMobile ? "px-2" : ""}`}>
+                      {player.tournaments}
+                    </TableCell>
                   </TableRow>
                 );
               })}
@@ -181,11 +245,11 @@ export function FullListView({ data, onGoBack, filterName }: FullListViewProps) 
           <Table className="w-full text-sm">
             <TableHeader>
               <TableRow>
-                <TableHead className="w-16">Rank</TableHead>
-                <TableHead>Player</TableHead>
-                <TableHead className="text-right">Consistency</TableHead>
-                <TableHead className="text-right">Events</TableHead>
-                <TableHead className="text-right">Variance</TableHead>
+                <TableHead className={isMobile ? "w-12 px-2" : "w-16"}>Rank</TableHead>
+                <TableHead className={isMobile ? "px-2" : ""}>Player</TableHead>
+                {!isMobile && <TableHead className="text-right">Consistency</TableHead>}
+                <TableHead className={`text-right ${isMobile ? "w-16" : ""}`}>Events</TableHead>
+                {!isMobile && <TableHead className="text-right">Variance</TableHead>}
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -197,21 +261,42 @@ export function FullListView({ data, onGoBack, filterName }: FullListViewProps) 
 
                 return (
                   <TableRow key={player.id || index}>
-                    <TableCell className="font-medium">{rank}</TableCell>
-                    <TableCell className="font-medium">{player.name}</TableCell>
-                    <TableCell className="text-right">
-                      {consistencyValue > 90 ? (
-                        <span className="font-semibold" style={{ color: "#FFD700" }}>
-                          {player.consistency}
-                        </span>
-                      ) : (
-                        <span className="font-medium">{player.consistency}</span>
+                    <TableCell className={`font-medium ${isMobile ? "px-2" : ""}`}>
+                      {rank}
+                    </TableCell>
+                    <TableCell className={`font-medium ${isMobile ? "px-2" : ""}`}>
+                      <div>{player.name}</div>
+                      {isMobile && (
+                        <div className="text-xs text-gray-500">
+                          Consistency: {consistencyValue > 90 ? (
+                            <span className="font-semibold" style={{ color: "#FFD700" }}>
+                              {player.consistency}
+                            </span>
+                          ) : (
+                            <span className="font-medium">{player.consistency}</span>
+                          )}
+                        </div>
                       )}
                     </TableCell>
-                    <TableCell className="text-right">{player.tournaments}</TableCell>
-                    <TableCell className="text-right">
-                      {player.seedVariance ?? player.upsetFactorVariance}
+                    {!isMobile && (
+                      <TableCell className="text-right">
+                        {consistencyValue > 90 ? (
+                          <span className="font-semibold" style={{ color: "#FFD700" }}>
+                            {player.consistency}
+                          </span>
+                        ) : (
+                          <span className="font-medium">{player.consistency}</span>
+                        )}
+                      </TableCell>
+                    )}
+                    <TableCell className={`text-right ${isMobile ? "px-2" : ""}`}>
+                      {player.tournaments}
                     </TableCell>
+                    {!isMobile && (
+                      <TableCell className="text-right">
+                        {player.seedVariance ?? player.upsetFactorVariance}
+                      </TableCell>
+                    )}
                   </TableRow>
                 );
               })}
@@ -226,25 +311,50 @@ export function FullListView({ data, onGoBack, filterName }: FullListViewProps) 
 
   return (
     <div className="space-y-4">
-      {/* Header with Back Button */}
-      <div className="flex items-center gap-4">
-        <Button 
-          variant="outline" 
-          onClick={onGoBack}
-          className="flex items-center gap-2"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          Back to Dashboard
-        </Button>
-        <div className="flex-1">
-          <h1 className="text-2xl font-bold">{data.title}</h1>
-          {filterName && (
-            <p className="text-sm text-gray-600 dark:text-gray-400">
-              Filtered by: {filterName}
-            </p>
-          )}
+      {/* Mobile-optimized Header */}
+      {isMobile ? (
+        <div className="flex flex-col gap-3">
+          {/* Back Button - Full width on mobile */}
+          <Button 
+            variant="outline" 
+            onClick={onGoBack}
+            className="flex items-center gap-2 w-full"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Back to Dashboard
+          </Button>
+          
+          {/* Title Section - Below button on mobile */}
+          <div>
+            <h1 className="text-xl font-bold">{data.title}</h1>
+            {filterName && (
+              <p className="text-sm text-gray-600 dark:text-gray-400">
+                Filtered by: {filterName}
+              </p>
+            )}
+          </div>
         </div>
-      </div>
+      ) : (
+        /* Desktop Header */
+        <div className="flex items-center gap-4">
+          <Button 
+            variant="outline" 
+            onClick={onGoBack}
+            className="flex items-center gap-2"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Back to Dashboard
+          </Button>
+          <div className="flex-1">
+            <h1 className="text-2xl font-bold">{data.title}</h1>
+            {filterName && (
+              <p className="text-sm text-gray-600 dark:text-gray-400">
+                Filtered by: {filterName}
+              </p>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Results Summary */}
       <div className="text-sm text-gray-600 dark:text-gray-400">
@@ -256,41 +366,58 @@ export function FullListView({ data, onGoBack, filterName }: FullListViewProps) 
       <Card>
         <CardHeader className="flex flex-row items-center space-y-0 pb-2">
           <div className="flex-1">
-            <CardTitle className="text-xl font-bold flex items-center gap-2">
+            <CardTitle className={`${isMobile ? "text-lg" : "text-xl"} font-bold flex items-center gap-2`}>
               {getIcon()}
-              {data.title}
+              {isMobile ? (
+                <span>
+                  {data.type === "topPerformers" && "Top Performers"}
+                  {data.type === "risingStars" && "Rising Stars"}
+                  {data.type === "seedOutperformers" && "Seed Outperformers"}
+                  {data.type === "consistentPlayers" && "Most Consistent"}
+                </span>
+              ) : (
+                data.title
+              )}
             </CardTitle>
           </div>
         </CardHeader>
-        <CardContent>
+        <CardContent className={isMobile ? "px-2" : "px-6"}>
           <div className="overflow-x-auto">
             {renderTable()}
           </div>
         </CardContent>
       </Card>
 
-      {/* Pagination */}
+      {/* Mobile-optimized Pagination */}
       {totalPages > 1 && (
-        <div className="flex justify-center items-center gap-4 mt-6">
-          <Button
-            variant="outline"
-            disabled={currentPage === 1}
-            onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
-          >
-            Previous
-          </Button>
+        <div className={isMobile ? "flex flex-col gap-3 mt-6" : "flex justify-center items-center gap-4 mt-6"}>
+          {/* Page info - centered on mobile */}
+          <div className={isMobile ? "text-center" : ""}>
+            <span className="text-sm text-gray-600 dark:text-gray-400">
+              Page {currentPage} of {totalPages}
+            </span>
+          </div>
           
-          <span className="text-sm text-gray-600 dark:text-gray-400">
-            Page {currentPage} of {totalPages}
-          </span>
-          
-          <Button
-            variant="outline"
-            disabled={currentPage === totalPages}
-            onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
-          >
-            Next
-          </Button>
+          {/* Navigation buttons - side by side on mobile */}
+          <div className={isMobile ? "flex gap-2" : "flex gap-4"}>
+            <Button
+              variant="outline"
+              disabled={currentPage === 1}
+              onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+              className={isMobile ? "flex-1" : ""}
+            >
+              Previous
+            </Button>
+            
+            <Button
+              variant="outline"
+              disabled={currentPage === totalPages}
+              onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+              className={isMobile ? "flex-1" : ""}
+            >
+              Next
+            </Button>
+          </div>
         </div>
       )}
     </div>
