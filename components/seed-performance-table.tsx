@@ -3,8 +3,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { TrendingUp, Eye } from "lucide-react"
+import { useIsMobile } from "@/hooks/use-mobile"
 
 export function SeedPerformanceTable({ players, filterName, onViewFullList }) {
+  const isMobile = useIsMobile();
+  
   // Always use the full players array for ranking
   const allPlayers = players
 
@@ -20,7 +23,7 @@ export function SeedPerformanceTable({ players, filterName, onViewFullList }) {
       <CardHeader className="flex flex-row items-center space-y-0 pb-2">
         <div className="flex-1">
           <CardTitle className="text-xl font-bold">Seed Outperformers</CardTitle>
-          <CardDescription>Players who place better than their seeds</CardDescription>
+          <CardDescription className="text-xs">Players who place better than their seeds</CardDescription>
         </div>
         <div className="flex items-center gap-2">
           {!filterName && (
@@ -31,22 +34,22 @@ export function SeedPerformanceTable({ players, filterName, onViewFullList }) {
               className="flex items-center gap-1 text-xs"
             >
               <Eye className="h-3 w-3" />
-              View Full List
+              {isMobile ? "Full List" : "View Full List"}
             </Button>
           )}
           <TrendingUp className="h-5 w-5 text-primary" />
         </div>
       </CardHeader>
-      <CardContent className="px-3">
+      <CardContent className={isMobile ? "px-2" : "px-3"}>
         <div className="overflow-x-auto">
           <Table className="w-full text-sm">
             <TableHeader>
               <TableRow>
-                <TableHead className="w-8 px-2">Rank</TableHead>
-                <TableHead className="px-2">Player</TableHead>
-                <TableHead className="text-right px-2 w-24">Avg. UF</TableHead>
-                <TableHead className="text-right px-2 w-20 hidden md:table-cell">Best UF</TableHead>
-                <TableHead className="text-right px-2 w-14 hidden sm:table-cell">Events</TableHead>
+                <TableHead className={isMobile ? "w-8 px-1" : "w-1/5 px-2 text-center"}>Rank</TableHead>
+                <TableHead className={isMobile ? "px-1 min-w-[120px]" : "w-2/5 px-2"}>Player</TableHead>
+                {!isMobile && <TableHead className="w-1/5 px-2 text-center">Avg. UF</TableHead>}
+                {!isMobile && <TableHead className="w-1/5 px-2 text-center">Best UF</TableHead>}
+                <TableHead className={isMobile ? "text-right px-1 w-12" : "w-1/5 px-2 text-center"}>Events</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -71,22 +74,37 @@ export function SeedPerformanceTable({ players, filterName, onViewFullList }) {
                 const overallRank = allPlayers.findIndex(p => p.id === player.id) + 1
                 return (
                   <TableRow key={player.id}>
-                    <TableCell className="font-medium px-2">{overallRank}</TableCell>
-                    <TableCell className="px-2">
-                      <div className="font-medium">{player.name}</div>
-                      <div className="text-xs text-gray-500 sm:hidden">
-                        Events: {player.tournaments}
-                      </div>
+                    <TableCell className={isMobile ? "font-medium px-1" : "font-medium px-2 text-center"}>
+                      {overallRank}
                     </TableCell>
-                    <TableCell className={`text-right font-medium ${avgColor} px-2`}>
-                      {isNaN(avg) ? "-" : avg.toFixed(2)}
+                    <TableCell className={isMobile ? "px-1" : "px-2"}>
+                      <div className="font-medium leading-tight">{player.name}</div>
+                      {isMobile && (
+                        <div className="text-xs text-gray-500 mt-1 space-y-0.5">
+                          <div className={avgColor}>
+                            Avg Upset Factor: {isNaN(avg) ? "-" : avg.toFixed(2)}
+                          </div>
+                          <div className={bestColor}>
+                            Best Upset Factor: {isNaN(best) ? "-" : best.toFixed(2)}
+                          </div>
+                        </div>
+                      )}
                     </TableCell>
-                    <TableCell className="text-right px-2 hidden md:table-cell">
-                      <span className={bestColor}>
-                        {isNaN(best) ? "-" : best.toFixed(2)}
-                      </span>
+                    {!isMobile && (
+                      <TableCell className={`font-medium ${avgColor} px-2 text-center`}>
+                        {isNaN(avg) ? "-" : avg.toFixed(2)}
+                      </TableCell>
+                    )}
+                    {!isMobile && (
+                      <TableCell className="px-2 text-center">
+                        <span className={bestColor}>
+                          {isNaN(best) ? "-" : best.toFixed(2)}
+                        </span>
+                      </TableCell>
+                    )}
+                    <TableCell className={isMobile ? "text-right px-1 text-xs" : "px-2 text-center"}>
+                      {player.tournaments}
                     </TableCell>
-                    <TableCell className="text-right px-2 hidden sm:table-cell">{player.tournaments}</TableCell>
                   </TableRow>
                 )
               })}

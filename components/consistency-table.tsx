@@ -3,8 +3,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Target, Eye } from "lucide-react"
+import { useIsMobile } from "@/hooks/use-mobile"
 
 export function ConsistencyTable({ players, filterName, onViewFullList }) {
+  const isMobile = useIsMobile();
+  
   // Use provided players or mock data, filter for at least 2 tournaments
   const allPlayers = players
 
@@ -20,7 +23,7 @@ export function ConsistencyTable({ players, filterName, onViewFullList }) {
       <CardHeader className="flex flex-row items-center space-y-0 pb-2">
         <div className="flex-1">
           <CardTitle className="text-xl font-bold">Most Consistent</CardTitle>
-          <CardDescription>Players who consistently place their seed or higher</CardDescription>
+          <CardDescription className="text-xs">Players who consistently place their seed or higher</CardDescription>
         </div>
         <div className="flex items-center gap-2">
           {!filterName && (
@@ -31,22 +34,22 @@ export function ConsistencyTable({ players, filterName, onViewFullList }) {
               className="flex items-center gap-1 text-xs"
             >
               <Eye className="h-3 w-3" />
-              View Full List
+              {isMobile ? "Full List" : "View Full List"}
             </Button>
           )}
           <Target className="h-5 w-5 text-primary" />
         </div>
       </CardHeader>
-      <CardContent className="px-3">
+      <CardContent className={isMobile ? "px-2" : "px-3"}>
         <div className="overflow-x-auto">
           <Table className="w-full text-sm">
             <TableHeader>
               <TableRow>
-                <TableHead className="w-8 px-2">Rank</TableHead>
-                <TableHead className="px-2">Player</TableHead>
-                <TableHead className="text-right px-2 w-20">Consistency</TableHead>
-                <TableHead className="text-right px-2 w-14 hidden sm:table-cell">Events</TableHead>
-                <TableHead className="text-right px-2 w-16 hidden md:table-cell">Variance</TableHead>
+                <TableHead className={isMobile ? "w-8 px-1" : "w-1/5 px-2 text-center"}>Rank</TableHead>
+                <TableHead className={isMobile ? "px-1 min-w-[120px]" : "w-2/5 px-2"}>Player</TableHead>
+                {!isMobile && <TableHead className="w-1/5 px-2 text-center">Consistency</TableHead>}
+                <TableHead className={isMobile ? "text-right px-1 w-12" : "w-1/5 px-2 text-center"}>Events</TableHead>
+                {!isMobile && <TableHead className="w-1/5 px-2 text-center">Variance</TableHead>}
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -60,22 +63,45 @@ export function ConsistencyTable({ players, filterName, onViewFullList }) {
 
                 return (
                   <TableRow key={player.id}>
-                    <TableCell className="font-medium px-2">{overallRank}</TableCell>
-                    <TableCell className="px-2">
-                      <div className="font-medium">{player.name}</div>
-                      <div className="text-xs text-gray-500 sm:hidden">
-                        Events: {player.tournaments}
-                      </div>
+                    <TableCell className={isMobile ? "font-medium px-1" : "font-medium px-2 text-center"}>
+                      {overallRank}
                     </TableCell>
-                    <TableCell className="text-right px-2">
-                      {consistencyValue > 90 ? (
-                        <span className="font-semibold" style={{ color: "#FFD700" }}>{player.consistency}</span>
-                      ) : (
-                        <span className="font-medium text-white">{player.consistency}</span>
+                    <TableCell className={isMobile ? "px-1" : "px-2"}>
+                      <div className="font-medium leading-tight">{player.name}</div>
+                      {isMobile && (
+                        <div className="text-xs text-gray-500 mt-1 space-y-0.5">
+                          <div>
+                            Consistency: {consistencyValue > 90 ? (
+                              <span className="font-semibold" style={{ color: "#FFD700" }}>
+                                {player.consistency}
+                              </span>
+                            ) : (
+                              <span className="font-medium">{player.consistency}</span>
+                            )}
+                          </div>
+                          <div>Variance: {player.seedVariance ?? player.upsetFactorVariance}</div>
+                        </div>
                       )}
                     </TableCell>
-                    <TableCell className="text-right px-2 hidden sm:table-cell">{player.tournaments}</TableCell>
-                    <TableCell className="text-right px-2 hidden md:table-cell">{player.seedVariance ?? player.upsetFactorVariance}</TableCell>
+                    {!isMobile && (
+                      <TableCell className="px-2 text-center">
+                        {consistencyValue > 90 ? (
+                          <span className="font-semibold" style={{ color: "#FFD700" }}>
+                            {player.consistency}
+                          </span>
+                        ) : (
+                          <span className="font-medium text-white">{player.consistency}</span>
+                        )}
+                      </TableCell>
+                    )}
+                    <TableCell className={isMobile ? "text-right px-1 text-xs" : "px-2 text-center"}>
+                      {player.tournaments}
+                    </TableCell>
+                    {!isMobile && (
+                      <TableCell className="px-2 text-center">
+                        {player.seedVariance ?? player.upsetFactorVariance}
+                      </TableCell>
+                    )}
                   </TableRow>
                 )
               })}
