@@ -239,7 +239,6 @@ async function cacheBasicTournaments() {
 
         let page = 1;
         let totalPages = 1;
-        const maxPagesToFetch = process.env.GITHUB_ACTIONS ? 5 : totalPages;
         do {
           // Add a heartbeat log to prevent timeouts
           if (page % 3 === 0) {
@@ -281,7 +280,7 @@ async function cacheBasicTournaments() {
               break;
             }
           }
-        } while (page <= totalPages && page <= maxPagesToFetch);
+        } while (page <= totalPages);
       }
     })
   );
