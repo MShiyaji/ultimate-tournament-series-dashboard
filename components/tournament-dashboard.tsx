@@ -7,6 +7,7 @@ import { TopPerformersTable } from "@/components/top-performers-table"
 import { SeedPerformanceTable } from "@/components/seed-performance-table"
 import { ConsistencyTable } from "@/components/consistency-table"
 import { RisingStarsTable } from "@/components/rising-stars-table"
+import { FullListView } from "@/components/full-list-view" // Add this import
 import { Button } from "@/components/ui/button"
 import { RefreshCw } from "lucide-react"
 import { format, subMonths } from "date-fns"
@@ -16,13 +17,21 @@ import { MiniTopPerformersTable } from "./mini-top-performers-table"
 import { MiniSeedPerformanceTable } from "./mini-seed-performance-table"
 import { MiniConsistencyTable } from "./mini-consistency-table"
 import { MiniRisingStarsTable } from "./mini-rising-stars-table"
+import { extractSeriesName } from "@/lib/utils"
 import { useIsMobile } from "@/hooks/use-mobile"
-import { FullListView } from "./full-list-view"
 
 export function TournamentDashboard() {
   const today = new Date()
   const sixMonthsAgo = subMonths(today, 4)
   const isMobile = useIsMobile()
+
+  // Update state management for view modes
+  const [viewMode, setViewMode] = useState<"dashboard" | "faq" | "fullList">("dashboard")
+  const [fullListData, setFullListData] = useState<{
+    type: "topPerformers" | "risingStars" | "seedOutperformers" | "consistentPlayers";
+    title: string;
+    players: any[];
+  } | null>(null)
 
   // Add FAQ tab state
   const [activeTab, setActiveTab] = useState("dashboard") // "dashboard" or "faq"
@@ -62,6 +71,30 @@ export function TournamentDashboard() {
   const [showCountrySuggestions, setShowCountrySuggestions] = useState<{ [key: number]: boolean }>({});
 
   const abortControllerRef = useRef<AbortController | null>(null);
+
+  // Add functions for full list view
+  const showFullList = (type: "topPerformers" | "risingStars" | "seedOutperformers" | "consistentPlayers") => {
+    if (!tournamentData) return;
+    
+    const titles = {
+      topPerformers: "Top Performers - Full List",
+      risingStars: "Rising Stars - Full List",
+      seedOutperformers: "Seed Outperformers - Full List",
+      consistentPlayers: "Most Consistent - Full List"
+    };
+    
+    setFullListData({
+      type,
+      title: titles[type],
+      players: tournamentData[type] || []
+    });
+    setViewMode("fullList");
+  };
+
+  const goBackToDashboard = () => {
+    setViewMode("dashboard");
+    setFullListData(null);
+  };
 
   const SEASON_PRESETS = [
     { label: "Spring", value: "spring", start: "03-01", end: "05-31" },
@@ -366,39 +399,6 @@ export function TournamentDashboard() {
     ).slice(0, 8);
   };
 
-  // Add new state for full list view
-  const [viewMode, setViewMode] = useState<"dashboard" | "faq" | "fullList">("dashboard");
-  const [fullListData, setFullListData] = useState<{
-    type: "topPerformers" | "risingStars" | "seedOutperformers" | "consistentPlayers";
-    title: string;
-    players: any[];
-  } | null>(null);
-
-  // Function to show full list
-  const showFullList = (type: "topPerformers" | "risingStars" | "seedOutperformers" | "consistentPlayers") => {
-    if (!tournamentData) return;
-    
-    const titles = {
-      topPerformers: "Top Performers - Full List",
-      risingStars: "Rising Stars - Full List",
-      seedOutperformers: "Seed Outperformers - Full List",
-      consistentPlayers: "Most Consistent - Full List"
-    };
-    
-    setFullListData({
-      type,
-      title: titles[type],
-      players: tournamentData[type] || []
-    });
-    setViewMode("fullList");
-  };
-
-  // Function to go back to dashboard
-  const goBackToDashboard = () => {
-    setViewMode("dashboard");
-    setFullListData(null);
-  };
-
   return (
     <div className="container mx-auto px-4 py-4 md:py-6 space-y-4 md:space-y-8">
       <div className="relative">
@@ -539,6 +539,46 @@ export function TournamentDashboard() {
                                   }}
                                 >
                                   {suggestion}
+                                </li>
+                              ))}
+                            </ul>
+                          )}
+                        </div>
+                        {/* Country Code with autocomplete */}
+                        <div className="relative w-20">
+                          <input
+                            type="text"
+                            placeholder={`CC #${idx + 1}`}
+                            value={input.countryCode || ""}
+                            onChange={e => {
+                              const value = e.target.value;
+                              handleSeriesInputChange(idx, "countryCode", value);
+                              const filtered = filterCountries(value);
+                              setCountrySuggestions(filtered);
+                              setShowCountrySuggestions(prev => ({ ...prev, [idx]: filtered.length > 0 }));
+                            }}
+                            onBlur={() => setTimeout(() => setShowCountrySuggestions(prev => ({ ...prev, [idx]: false })), 100)}
+                            onFocus={() => {
+                              if (countrySuggestions.length > 0) {
+                                setShowCountrySuggestions(prev => ({ ...prev, [idx]: true }));
+                              }
+                            }}
+                            className="w-full border rounded px-3 py-2 text-sm"
+                            maxLength={2}
+                            autoComplete="off"
+                          />
+                          {showCountrySuggestions[idx] && (
+                            <ul className="absolute z-20 bg-white dark:bg-zinc-800 border border-gray-300 rounded w-48 mt-1 max-h-48 overflow-y-auto shadow">
+                              {filterCountries(input.countryCode || "").map((country, suggestionIdx) => (
+                                <li
+                                  key={suggestionIdx}
+                                  className="px-3 py-2 cursor-pointer hover:bg-gray-100 dark:hover:bg-zinc-700 text-xs"
+                                  onMouseDown={() => {
+                                    handleSeriesInputChange(idx, "countryCode", country.code);
+                                    setShowCountrySuggestions(prev => ({ ...prev, [idx]: false }));
+                                  }}
+                                >
+                                  <span className="font-mono text-blue-600 dark:text-blue-400">{country.code}</span> - {country.name}
                                 </li>
                               ))}
                             </ul>
@@ -1262,17 +1302,18 @@ export function TournamentDashboard() {
               {/* FAQ Item 2 */}
               <div className="bg-white dark:bg-zinc-800 rounded-lg p-4 shadow">
                 <h3 className="text-lg font-semibold mb-2 text-blue-600 dark:text-blue-400">
-                  Q: Can I find all the tournaments within my region?
+                  Q: What is the attendance threshold?
                 </h3>
                 <p className="text-gray-700 dark:text-gray-300 text-sm">
-                  A: While you can't directly find all tournaments in your region, you can add up to four tournament series to approximate your overall region's data.
+                  A: This determines the minimum percentage of tournaments a player must attend to be included in the stats. 
+                  Default is 25%. If you're getting "No data found", try lowering this to 0% or 5%.
                 </p>
               </div>
 
               {/* FAQ Item 3 */}
               <div className="bg-white dark:bg-zinc-800 rounded-lg p-4 shadow">
                 <h3 className="text-lg font-semibold mb-2 text-blue-600 dark:text-blue-400">
-                  Q: The dashboard says there isn't any data for my tournament, but I know I put the series name correctly, what gives?
+                  Q: The dashboard says there isn't any data for my tournament, but I know I put the series name correctly!
                 </h3>
                 <p className="text-gray-700 dark:text-gray-300 text-sm">
                   A: It's likely that over the time period selected, there are no players that meet the attendance threshold. Try lowering the threshold from 25%, or expand your date range.
@@ -1282,7 +1323,7 @@ export function TournamentDashboard() {
               {/* FAQ Item 4 */}
               <div className="bg-white dark:bg-zinc-800 rounded-lg p-4 shadow">
                 <h3 className="text-lg font-semibold mb-2 text-blue-600 dark:text-blue-400">
-                  Q: Help! There are other tournaments by the same name as mine, what do I do?
+                  Q: Help! There are other tournaments by the same name as mine!
                 </h3>
                 <p className="text-gray-700 dark:text-gray-300 text-sm">
                   A: You can add the city and/or the country code for your tournament series to help filter out unrelated tournaments. 
