@@ -12,7 +12,7 @@ const STARTGG_API_KEYS = (process.env.STARTGG_API_KEYS || process.env.STARTGG_AP
   .filter(Boolean);
 
 const s3 = new S3Client({
-  region: "us-east-2", // or your region
+  region: "us-east-2",
   credentials: {
     accessKeyId: process.env.AWS_ACCESS_KEY_ID!,
     secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY!,
@@ -126,7 +126,7 @@ async function fetchFromAPI(query: string, variables: Record<string, any>, apiKe
 
 // Download
 async function downloadCache() {
-  const command = new GetObjectCommand({ Bucket: BUCKET_NAME, Key: CACHE_KEY });
+  const command = new GetObjectCommand({ Bucket: process.env.AWS_BUCKET_NAME, Key: process.env.AWS_CACHE_KEY });
   const response = await s3.send(command);
   const text = await response.Body.transformToString();
   return JSON.parse(text);

@@ -3,7 +3,7 @@ import { useState } from "react";
 
 const API_URL = "https://api.start.gg/gql/alpha";
 const s3 = new S3Client({
-  region: process.env.AWS_REGION || "us-east-2",
+  region: process.env.AWS_REGION,
   credentials: {
     accessKeyId: process.env.AWS_ACCESS_KEY_ID!,
     secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY!,

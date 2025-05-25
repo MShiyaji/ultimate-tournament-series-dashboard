@@ -526,21 +526,22 @@ export function TournamentDashboard() {
                                 setShowCountrySuggestions(prev => ({ ...prev, [idx]: true }));
                               }
                             }}
-                            className="border rounded px-3 py-2 text-sm w-full h-10"
+                            className="w-full border rounded px-3 py-2 text-sm"
+                            maxLength={2}
                             autoComplete="off"
                           />
                           {showCountrySuggestions[idx] && (
-                            <ul className="absolute z-20 bg-white dark:bg-zinc-800 border border-gray-300 rounded w-full mt-1 max-h-48 overflow-y-auto shadow">
-                              {countrySuggestions.map((suggestion, sidx) => (
+                            <ul className="absolute z-20 bg-white dark:bg-zinc-800 border border-gray-300 rounded w-48 mt-1 max-h-48 overflow-y-auto shadow">
+                              {filterCountries(input.countryCode || "").map((country, suggestionIdx) => (
                                 <li
-                                  key={sidx}
-                                  className="px-3 py-2 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800"
+                                  key={suggestionIdx}
+                                  className="px-3 py-2 cursor-pointer hover:bg-gray-100 dark:hover:bg-zinc-700 text-xs"
                                   onMouseDown={() => {
-                                    handleSeriesInputChange(idx, "countryCode", suggestion);
+                                    handleSeriesInputChange(idx, "countryCode", country.code);
                                     setShowCountrySuggestions(prev => ({ ...prev, [idx]: false }));
                                   }}
                                 >
-                                  {suggestion}
+                                  <span className="font-mono text-blue-600 dark:text-blue-400">{country.code}</span> - {country.name}
                                 </li>
                               ))}
                             </ul>
@@ -647,21 +648,22 @@ export function TournamentDashboard() {
                               setShowCountrySuggestions(prev => ({ ...prev, [idx]: true }));
                             }
                           }}
-                          className="border rounded px-3 py-2 text-sm w-full h-10"
+                          className="w-full border rounded px-3 py-2 text-sm"
+                          maxLength={2}
                           autoComplete="off"
                         />
                         {showCountrySuggestions[idx] && (
-                          <ul className="absolute z-20 bg-white dark:bg-zinc-800 border border-gray-300 rounded w-full mt-1 max-h-48 overflow-y-auto shadow">
-                            {countrySuggestions.map((suggestion, sidx) => (
+                          <ul className="absolute z-20 bg-white dark:bg-zinc-800 border border-gray-300 rounded w-48 mt-1 max-h-48 overflow-y-auto shadow">
+                            {filterCountries(input.countryCode || "").map((country, suggestionIdx) => (
                               <li
-                                key={sidx}
-                                className="px-3 py-2 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800"
+                                key={suggestionIdx}
+                                className="px-3 py-2 cursor-pointer hover:bg-gray-100 dark:hover:bg-zinc-700 text-xs"
                                 onMouseDown={() => {
-                                  handleSeriesInputChange(idx, "countryCode", suggestion);
+                                  handleSeriesInputChange(idx, "countryCode", country.code);
                                   setShowCountrySuggestions(prev => ({ ...prev, [idx]: false }));
                                 }}
                               >
-                                {suggestion}
+                                <span className="font-mono text-blue-600 dark:text-blue-400">{country.code}</span> - {country.name}
                               </li>
                             ))}
                           </ul>
