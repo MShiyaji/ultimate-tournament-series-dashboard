@@ -107,11 +107,11 @@ async function fetchFromAPI(query: string, variables: Record<string, any>, apiKe
       if (data.errors) throw new Error(data.errors.map((e: any) => e.message).join(", "));
 
       return data.data;
-    } catch (error: any) {
+    } catch (error) {
       if (error.name === 'AbortError') {
         console.log(`⏱️ Request timed out (attempt ${attempt}/${retries})`);
       } else {
-        console.error(`❌ API error (attempt ${attempt}/${retries}):`, error.message || String(error));
+        console.error(`❌ API error (attempt ${attempt}/${retries}):`, error.message);
       }
       
       if (attempt === retries) throw error;
@@ -126,10 +126,6 @@ async function fetchFromAPI(query: string, variables: Record<string, any>, apiKe
 async function downloadCache() {
   const command = new GetObjectCommand({ Bucket: BUCKET_NAME, Key: CACHE_KEY });
   const response = await s3.send(command);
-  // Add null check before accessing Body
-  if (!response.Body) {
-    throw new Error("Empty response body from S3");
-  }
   const text = await response.Body.transformToString();
   return JSON.parse(text);
 }
@@ -191,42 +187,14 @@ async function cacheBasicTournaments() {
 
   let startDate: Date;
   const endDate = new Date();
-  const now = new Date();
-  
   if (startFromScratch) {
     startDate = new Date("2018-01-01");
     console.log("🔄 Building complete cache from 2018 to present");
   } else {
-    // First check: Near past (for tournament dates)
-    const recentStartDate = new Date();
-    recentStartDate.setDate(recentStartDate.getDate() - 2);
-    recentStartDate.setHours(0, 0, 0, 0);
-    
-    // Also check a 30-day lookback once a week
-    // to catch backdated tournaments that were added recently
-    const dayOfWeek = now.getDay(); // 0 = Sunday, 6 = Saturday
-    const doExtendedLookback = dayOfWeek === 6; // On Sunday, do extended lookback
-    
-    if (doExtendedLookback) {
-      // Look back 60 days once a week
-      startDate = new Date();
-      startDate.setDate(startDate.getDate() - 60);
-      startDate.setHours(0, 0, 0, 0);
-      console.log(`🔍 Performing weekly extended 60-day lookback from ${startDate.toLocaleDateString()}`);
-    } else {
-      // Regular 2-day lookback
-      startDate = recentStartDate;
-      console.log(`🔄 Updating cache with tournaments from ${startDate.toLocaleDateString()}`);
-    }
-    
-    // Also do monthly deep lookback to catch any very old tournaments
-    const isFirstOfMonth = now.getDate() === 1;
-    if (isFirstOfMonth) {
-      console.log("📅 First day of month - performing 6-month deep lookback");
-      startDate = new Date();
-      startDate.setMonth(startDate.getMonth() - 6);
-      startDate.setHours(0, 0, 0, 0);
-    }
+    startDate = new Date();
+    startDate.setDate(startDate.getDate() - 2);
+    startDate.setHours(0, 0, 0, 0);
+    console.log(`🔄 Updating cache with tournaments from ${startDate.toLocaleDateString()}`);
   }
 
   const chunkSizeDays = startFromScratch ? 21 : 1;
@@ -247,7 +215,7 @@ async function cacheBasicTournaments() {
 
   // 2. Split dateChunks among API keys
   function chunkArray<T>(array: T[], n: number): T[][] {
-    const chunks: T[][] = Array.from({ length: n }, () => [] as T[]);
+    const chunks = Array.from({ length: n }, () => []);
     array.forEach((item, i) => {
       chunks[i % n].push(item);
     });
@@ -271,7 +239,7 @@ async function cacheBasicTournaments() {
 
         let page = 1;
         let totalPages = 1;
-        const maxPagesToFetch = process.env.GITHUB_ACTIONS ? 999 : totalPages;
+        const maxPagesToFetch = process.env.GITHUB_ACTIONS ? 5 : totalPages;
         do {
           // Add a heartbeat log to prevent timeouts
           if (page % 3 === 0) {
@@ -367,88 +335,10 @@ async function cacheBasicTournaments() {
   }
 }
 
-// Add this new function
-
-/**
- * Checks if a specific tournament exists in the cache
- * @param identifier Tournament ID or slug to search for
- * @returns The tournament object if found, null otherwise
- */
-export async function checkTournamentInCache(identifier: string): Promise<any | null> {
-  try {
-    const tournaments = await fetchCachedBasicTournaments();
-    
-    // Check for either ID or slug match
-    const tournament = tournaments.find(t => 
-      t.id === identifier || 
-      t.slug === identifier ||
-      t.slug?.includes(identifier)
-    );
-    
-    return tournament || null;
-  } catch (error) {
-    console.error("Error checking tournament in cache:", error);
-    return null;
-  }
-}
-
-// New function to fetch a specific tournament by ID
-async function fetchSpecificTournament(tournamentId: string) {
-  const specificQuery = `
-    query TournamentById($id: ID!) {
-      tournament(id: $id) {
-        id
-        name
-        slug
-        startAt
-        primaryContact
-        events(filter: { videogameId: 1386 }) {
-          id
-          name
-          numEntrants
-        }
-      }
-    }
-  `;
-  
-  const data = await fetchFromAPI(specificQuery, { id: tournamentId }, STARTGG_API_KEYS[0]);
-  return data?.tournament;
-}
-
-async function findTournament() {
-  const args = process.argv.slice(2);
-  // Get the tournament identifier from command line arguments
-  const tournamentIdentifier = args[1] || ""; // Fix missing assignment
-  
-  if (!tournamentIdentifier) {
-    console.log("Usage: npx ts-node scripts/cacheDailyTournaments.ts find <tournament-id-or-slug>");
-    return;
-  }
-  
-  console.log(`🔍 Searching for tournament: ${tournamentIdentifier}`);
-  const tournament = await checkTournamentInCache(tournamentIdentifier);
-  
-  if (tournament) {
-    console.log("✅ Tournament found in cache:");
-    console.log(JSON.stringify(tournament, null, 2));
-  } else {
-    console.log("❌ Tournament not found in cache");
-  }
-}
-
-// Update the main execution block
+// Run only if this file is called directly
 if (require.main === module) {
-  const command = process.argv[2];
-  
-  if (command === "find") {
-    findTournament().catch((err) => {
-      console.error("❌ Error searching for tournament:", err);
-      process.exit(1);
-    });
-  } else {
-    cacheBasicTournaments().catch((err) => {
-      console.error("❌ Script error:", err);
-      process.exit(1);
-    });
-  }
+  cacheBasicTournaments().catch((err) => {
+    console.error("❌ Script error:", err);
+    process.exit(1);
+  });
 }
