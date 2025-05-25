@@ -13,10 +13,11 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { TrendingUp } from "lucide-react"
+import { TrendingUp, Eye } from "lucide-react"
 
-export function RisingStarsTable({ players, filterName }) {
+export function RisingStarsTable({ players, filterName, onViewFullList }) {
   if (!players || players.length === 0) return null
 
   // Always use the full players array for ranking
@@ -38,7 +39,20 @@ export function RisingStarsTable({ players, filterName }) {
             Players with the largest normalized placement improvement
           </CardDescription>
         </div>
-        <TrendingUp className="h-5 w-5 text-green-600" />
+        <div className="flex items-center gap-2">
+          {!filterName && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onViewFullList}
+              className="flex items-center gap-1 text-xs"
+            >
+              <Eye className="h-3 w-3" />
+              View Full List
+            </Button>
+          )}
+          <TrendingUp className="h-5 w-5 text-green-600" />
+        </div>
       </CardHeader>
       <CardContent>
         <div className="overflow-x-auto">

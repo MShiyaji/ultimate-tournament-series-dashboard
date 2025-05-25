@@ -16,8 +16,8 @@ import { MiniTopPerformersTable } from "./mini-top-performers-table"
 import { MiniSeedPerformanceTable } from "./mini-seed-performance-table"
 import { MiniConsistencyTable } from "./mini-consistency-table"
 import { MiniRisingStarsTable } from "./mini-rising-stars-table"
-import { extractSeriesName } from "@/lib/utils"
 import { useIsMobile } from "@/hooks/use-mobile"
+import { FullListView } from "./full-list-view"
 
 export function TournamentDashboard() {
   const today = new Date()
@@ -366,6 +366,39 @@ export function TournamentDashboard() {
     ).slice(0, 8);
   };
 
+  // Add new state for full list view
+  const [viewMode, setViewMode] = useState<"dashboard" | "faq" | "fullList">("dashboard");
+  const [fullListData, setFullListData] = useState<{
+    type: "topPerformers" | "risingStars" | "seedOutperformers" | "consistentPlayers";
+    title: string;
+    players: any[];
+  } | null>(null);
+
+  // Function to show full list
+  const showFullList = (type: "topPerformers" | "risingStars" | "seedOutperformers" | "consistentPlayers") => {
+    if (!tournamentData) return;
+    
+    const titles = {
+      topPerformers: "Top Performers - Full List",
+      risingStars: "Rising Stars - Full List",
+      seedOutperformers: "Seed Outperformers - Full List",
+      consistentPlayers: "Most Consistent - Full List"
+    };
+    
+    setFullListData({
+      type,
+      title: titles[type],
+      players: tournamentData[type] || []
+    });
+    setViewMode("fullList");
+  };
+
+  // Function to go back to dashboard
+  const goBackToDashboard = () => {
+    setViewMode("dashboard");
+    setFullListData(null);
+  };
+
   return (
     <div className="container mx-auto px-4 py-4 md:py-6 space-y-4 md:space-y-8">
       <div className="relative">
@@ -380,55 +413,59 @@ export function TournamentDashboard() {
         </div>
       </div>
 
-      {/* Tab Navigation */}
-      <div className="flex justify-center mb-4">
-        <div className="flex bg-gray-200 dark:bg-zinc-800 rounded-lg p-1">
-          <button
-            onClick={() => setActiveTab("dashboard")}
-            className={`px-4 py-2 rounded-md text-sm font-medium transition ${
-              activeTab === "dashboard"
-                ? "bg-white dark:bg-zinc-700 text-black dark:text-white shadow"
-                : "text-gray-600 dark:text-gray-400 hover:text-black dark:hover:text-white"
-            }`}
-          >
-            Dashboard
-          </button>
-          <button
-            onClick={() => setActiveTab("faq")}
-            className={`px-4 py-2 rounded-md text-sm font-medium transition ${
-              activeTab === "faq"
-                ? "bg-white dark:bg-zinc-700 text-black dark:text-white shadow"
-                : "text-gray-600 dark:text-gray-400 hover:text-black dark:hover:text-white"
-            }`}
-          >
-            FAQ
-          </button>
+      {/* Tab Navigation - only show if not in full list view */}
+      {viewMode !== "fullList" && (
+        <div className="flex justify-center mb-4">
+          <div className="flex bg-gray-200 dark:bg-zinc-800 rounded-lg p-1">
+            <button
+              onClick={() => setViewMode("dashboard")}
+              className={`px-4 py-2 rounded-md text-sm font-medium transition ${
+                viewMode === "dashboard"
+                  ? "bg-white dark:bg-zinc-700 text-black dark:text-white shadow"
+                  : "text-gray-600 dark:text-gray-400 hover:text-black dark:hover:text-white"
+              }`}
+            >
+              Dashboard
+            </button>
+            <button
+              onClick={() => setViewMode("faq")}
+              className={`px-4 py-2 rounded-md text-sm font-medium transition ${
+                viewMode === "faq"
+                  ? "bg-white dark:bg-zinc-700 text-black dark:text-white shadow"
+                  : "text-gray-600 dark:text-gray-400 hover:text-black dark:hover:text-white"
+              }`}
+            >
+              FAQ
+            </button>
+          </div>
         </div>
-      </div>
+      )}
 
-      {/* Feedback Button */}
-      <div className="flex justify-center mb-3">
-        <a
-          href="https://forms.gle/N9X1Uo96eN4AjJTd6"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="px-4 py-2 rounded bg-green-600 text-white font-medium text-sm shadow hover:bg-green-700 transition flex items-center"
-        >
-          <svg 
-            xmlns="http://www.w3.org/2000/svg" 
-            className="h-4 w-4 mr-2" 
-            fill="none" 
-            viewBox="0 0 24 24" 
-            stroke="currentColor"
+      {/* Feedback Button - only show if not in full list view */}
+      {viewMode !== "fullList" && (
+        <div className="flex justify-center mb-3">
+          <a
+            href="https://forms.gle/N9X1Uo96eN4AjJTd6"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="px-4 py-2 rounded bg-green-600 text-white font-medium text-sm shadow hover:bg-green-700 transition flex items-center"
           >
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" />
-          </svg>
-          Submit Feedback
-        </a>
-      </div>
+            <svg 
+              xmlns="http://www.w3.org/2000/svg" 
+              className="h-4 w-4 mr-2" 
+              fill="none" 
+              viewBox="0 0 24 24" 
+              stroke="currentColor"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" />
+            </svg>
+            Submit Feedback
+          </a>
+        </div>
+      )}
 
       {/* Tab Content */}
-      {activeTab === "dashboard" ? (
+      {viewMode === "dashboard" ? (
         // DASHBOARD TAB CONTENT
         <>
           <div className="flex flex-col gap-4 items-stretch">
@@ -502,46 +539,6 @@ export function TournamentDashboard() {
                                   }}
                                 >
                                   {suggestion}
-                                </li>
-                              ))}
-                            </ul>
-                          )}
-                        </div>
-                        {/* Country Code with autocomplete */}
-                        <div className="relative w-20">
-                          <input
-                            type="text"
-                            placeholder={`CC #${idx + 1}`}
-                            value={input.countryCode || ""}
-                            onChange={e => {
-                              const value = e.target.value;
-                              handleSeriesInputChange(idx, "countryCode", value);
-                              const filtered = filterCountries(value);
-                              setCountrySuggestions(filtered);
-                              setShowCountrySuggestions(prev => ({ ...prev, [idx]: filtered.length > 0 }));
-                            }}
-                            onBlur={() => setTimeout(() => setShowCountrySuggestions(prev => ({ ...prev, [idx]: false })), 100)}
-                            onFocus={() => {
-                              if (countrySuggestions.length > 0) {
-                                setShowCountrySuggestions(prev => ({ ...prev, [idx]: true }));
-                              }
-                            }}
-                            className="w-full border rounded px-3 py-2 text-sm"
-                            maxLength={2}
-                            autoComplete="off"
-                          />
-                          {showCountrySuggestions[idx] && (
-                            <ul className="absolute z-20 bg-white dark:bg-zinc-800 border border-gray-300 rounded w-48 mt-1 max-h-48 overflow-y-auto shadow">
-                              {filterCountries(input.countryCode || "").map((country, suggestionIdx) => (
-                                <li
-                                  key={suggestionIdx}
-                                  className="px-3 py-2 cursor-pointer hover:bg-gray-100 dark:hover:bg-zinc-700 text-xs"
-                                  onMouseDown={() => {
-                                    handleSeriesInputChange(idx, "countryCode", country.code);
-                                    setShowCountrySuggestions(prev => ({ ...prev, [idx]: false }));
-                                  }}
-                                >
-                                  <span className="font-mono text-blue-600 dark:text-blue-400">{country.code}</span> - {country.name}
                                 </li>
                               ))}
                             </ul>
@@ -1156,16 +1153,32 @@ export function TournamentDashboard() {
                       {/* Top Performers & Rising Stars */}
                       <div className="grid grid-cols-1 gap-4 md:gap-6">
                         <div className="bg-gradient-to-br from-yellow-200 via-pink-100 to-pink-300 rounded-lg p-3 shadow">
-                          <TopPerformersTable players={tournamentData.topPerformers} filterName={activePlayerName} />
+                          <TopPerformersTable 
+                            players={tournamentData.topPerformers} 
+                            filterName={activePlayerName}
+                            onViewFullList={() => showFullList("topPerformers")}
+                          />
                         </div>
                         <div className="bg-gradient-to-br from-blue-200 via-green-100 to-green-300 rounded-lg p-3 shadow">
-                          <RisingStarsTable players={tournamentData.risingStars} filterName={activePlayerName} />
+                          <RisingStarsTable 
+                            players={tournamentData.risingStars} 
+                            filterName={activePlayerName}
+                            onViewFullList={() => showFullList("risingStars")}
+                          />
                         </div>
                         <div className="bg-gradient-to-br from-purple-200 via-indigo-100 to-indigo-300 rounded-lg p-3 shadow">
-                          <SeedPerformanceTable players={tournamentData.seedOutperformers} filterName={activePlayerName} />
+                          <SeedPerformanceTable 
+                            players={tournamentData.seedOutperformers} 
+                            filterName={activePlayerName}
+                            onViewFullList={() => showFullList("seedOutperformers")}
+                          />
                         </div>
                         <div className="bg-gradient-to-br from-orange-200 via-yellow-100 to-yellow-300 rounded-lg p-3 shadow">
-                          <ConsistencyTable players={tournamentData.consistentPlayers} filterName={activePlayerName} />
+                          <ConsistencyTable 
+                            players={tournamentData.consistentPlayers} 
+                            filterName={activePlayerName}
+                            onViewFullList={() => showFullList("consistentPlayers")}
+                          />
                         </div>
                       </div>
                       
@@ -1213,7 +1226,7 @@ export function TournamentDashboard() {
           </div>
 
           {/* Footer with Methodology Button - only show on dashboard tab */}
-          {activeTab === "dashboard" && (
+          {viewMode === "dashboard" && (
             <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-50">
               <a
                 href="https://docs.google.com/document/d/16CJ9wdU3gNshWn7miWuneRUUctJ1c-ri/edit?usp=sharing&ouid=103622397100432987768&rtpof=true&sd=true"
@@ -1227,7 +1240,7 @@ export function TournamentDashboard() {
             </div>
           )}
         </>
-      ) : (
+      ) : viewMode === "faq" ? (
         // FAQ TAB CONTENT
         <div className="max-w-4xl mx-auto">
           <div className="bg-gray-50 dark:bg-zinc-900 rounded-lg p-6">
@@ -1249,18 +1262,17 @@ export function TournamentDashboard() {
               {/* FAQ Item 2 */}
               <div className="bg-white dark:bg-zinc-800 rounded-lg p-4 shadow">
                 <h3 className="text-lg font-semibold mb-2 text-blue-600 dark:text-blue-400">
-                  Q: What is the attendance threshold?
+                  Q: Can I find all the tournaments within my region?
                 </h3>
                 <p className="text-gray-700 dark:text-gray-300 text-sm">
-                  A: This determines the minimum percentage of tournaments a player must attend to be included in the stats. 
-                  Default is 25%. If you're getting "No data found", try lowering this to 0% or 5%.
+                  A: While you can't directly find all tournaments in your region, you can add up to four tournament series to approximate your overall region's data.
                 </p>
               </div>
 
               {/* FAQ Item 3 */}
               <div className="bg-white dark:bg-zinc-800 rounded-lg p-4 shadow">
                 <h3 className="text-lg font-semibold mb-2 text-blue-600 dark:text-blue-400">
-                  Q: The dashboard says there isn't any data for my tournament, but I know I put the series name correctly!
+                  Q: The dashboard says there isn't any data for my tournament, but I know I put the series name correctly, what gives?
                 </h3>
                 <p className="text-gray-700 dark:text-gray-300 text-sm">
                   A: It's likely that over the time period selected, there are no players that meet the attendance threshold. Try lowering the threshold from 25%, or expand your date range.
@@ -1270,7 +1282,7 @@ export function TournamentDashboard() {
               {/* FAQ Item 4 */}
               <div className="bg-white dark:bg-zinc-800 rounded-lg p-4 shadow">
                 <h3 className="text-lg font-semibold mb-2 text-blue-600 dark:text-blue-400">
-                  Q: Help! There are other tournaments by the same name as mine!
+                  Q: Help! There are other tournaments by the same name as mine, what do I do?
                 </h3>
                 <p className="text-gray-700 dark:text-gray-300 text-sm">
                   A: You can add the city and/or the country code for your tournament series to help filter out unrelated tournaments. 
@@ -1336,7 +1348,14 @@ export function TournamentDashboard() {
             </div>
           </div>
         </div>
-      )}
+      ) : viewMode === "fullList" ? (
+        // FULL LIST VIEW
+        <FullListView 
+          data={fullListData}
+          onGoBack={goBackToDashboard}
+          filterName={activePlayerName}
+        />
+      ) : null}
     </div>
   )
 }

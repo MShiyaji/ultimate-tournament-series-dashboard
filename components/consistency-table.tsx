@@ -1,9 +1,10 @@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Target } from "lucide-react"
+import { Target, Eye } from "lucide-react"
 
-export function ConsistencyTable({ players, filterName }) {
+export function ConsistencyTable({ players, filterName, onViewFullList }) {
   // Use provided players or mock data, filter for at least 2 tournaments
   const allPlayers = players
 
@@ -21,7 +22,20 @@ export function ConsistencyTable({ players, filterName }) {
           <CardTitle className="text-xl font-bold">Most Consistent</CardTitle>
           <CardDescription>Players who consistently place their seed or higher</CardDescription>
         </div>
-        <Target className="h-5 w-5 text-primary" />
+        <div className="flex items-center gap-2">
+          {!filterName && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onViewFullList}
+              className="flex items-center gap-1 text-xs"
+            >
+              <Eye className="h-3 w-3" />
+              View Full List
+            </Button>
+          )}
+          <Target className="h-5 w-5 text-primary" />
+        </div>
       </CardHeader>
       <CardContent className="px-3">
         <div className="overflow-x-auto">

@@ -1,7 +1,11 @@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Trophy } from "lucide-react"
+import { Trophy, Eye } from "lucide-react"
+import { useState } from "react"
+import { Info } from "lucide-react"
+
 function InfoPopover({ text }: { text: string }) {
   const [open, setOpen] = useState(false)
   return (
@@ -32,8 +36,8 @@ function InfoPopover({ text }: { text: string }) {
   )
 }
 
-export function TopPerformersTable({ players, filterName}) {
-  const displayPlayers = players; // fallback if not provided
+export function TopPerformersTable({ players, filterName, onViewFullList }) {
+  const displayPlayers = players;
 
   const filteredPlayers = filterName?.trim()
     ? displayPlayers.filter((p) =>
@@ -48,7 +52,20 @@ export function TopPerformersTable({ players, filterName}) {
           <CardTitle className="text-xl font-bold">Top Performers</CardTitle>
           <CardDescription>Players with the highest weighted placements</CardDescription>
         </div>
-        <Trophy className="h-5 w-5 text-primary" />
+        <div className="flex items-center gap-2">
+          {!filterName && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onViewFullList}
+              className="flex items-center gap-1 text-xs"
+            >
+              <Eye className="h-3 w-3" />
+              View Full List
+            </Button>
+          )}
+          <Trophy className="h-5 w-5 text-primary" />
+        </div>
       </CardHeader>
       <CardContent className="px-3">
         <div className="overflow-x-auto">
@@ -64,10 +81,7 @@ export function TopPerformersTable({ players, filterName}) {
             </TableHeader>
             <TableBody>
               {filteredPlayers.map((player) => {
-                // Find the player's overall rank in the full list
                 const overallRank = displayPlayers.findIndex(p => p.id === player.id) + 1;
-
-                // Medal colors for top 3
                 let medalColor = "";
                 if (overallRank === 1) medalColor = "#FFD700";
                 else if (overallRank === 2) medalColor = "#C0C0C0";

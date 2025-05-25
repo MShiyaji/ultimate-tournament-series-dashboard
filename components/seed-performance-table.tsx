@@ -1,9 +1,10 @@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { TrendingUp } from "lucide-react"
+import { TrendingUp, Eye } from "lucide-react"
 
-export function SeedPerformanceTable({ players, filterName }) {
+export function SeedPerformanceTable({ players, filterName, onViewFullList }) {
   // Always use the full players array for ranking
   const allPlayers = players
 
@@ -21,7 +22,20 @@ export function SeedPerformanceTable({ players, filterName }) {
           <CardTitle className="text-xl font-bold">Seed Outperformers</CardTitle>
           <CardDescription>Players who place better than their seeds</CardDescription>
         </div>
-        <TrendingUp className="h-5 w-5 text-primary" />
+        <div className="flex items-center gap-2">
+          {!filterName && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onViewFullList}
+              className="flex items-center gap-1 text-xs"
+            >
+              <Eye className="h-3 w-3" />
+              View Full List
+            </Button>
+          )}
+          <TrendingUp className="h-5 w-5 text-primary" />
+        </div>
       </CardHeader>
       <CardContent className="px-3">
         <div className="overflow-x-auto">
