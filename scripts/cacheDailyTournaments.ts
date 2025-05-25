@@ -281,6 +281,29 @@ async function cacheBasicTournaments() {
             }
           }
         } while (page <= totalPages);
+
+        if (newTournaments.length > 0) {
+          // Merge and deduplicate
+          const tournamentMap = new Map();
+          for (const tournament of existingTournaments) {
+            if (tournament.id) tournamentMap.set(tournament.id, tournament);
+          }
+          for (const tournament of newTournaments) {
+            if (tournament.id) tournamentMap.set(tournament.id, tournament);
+          }
+          const basicTournaments = Array.from(tournamentMap.values());
+          const cacheData = { tournaments: { nodes: basicTournaments } };
+
+          try {
+            await uploadCache(cacheData);
+            console.log(`✅ Partial cache updated! Now contains ${basicTournaments.length} tournaments`);
+            // Update existingTournaments for next chunk
+            existingTournaments = basicTournaments;
+            newTournaments.length = 0; // Clear newTournaments for next chunk
+          } catch (uploadError) {
+            console.error("❌ Failed to upload partial cache to S3:", uploadError);
+          }
+        }
       }
     })
   );
