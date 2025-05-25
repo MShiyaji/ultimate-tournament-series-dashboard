@@ -22,7 +22,7 @@ const s3 = new S3Client({
 const BUCKET_NAME = "ultimate-tournament-data";
 const CACHE_KEY = "basic-cache.json";
 
-const basicQuery = `
+var basicQuery = `
   query BasicTournamentInfo($startTimestamp: Timestamp!, $endTimestamp: Timestamp!, $page: Int!) {
     tournaments(query: {
       perPage: 100
@@ -42,6 +42,8 @@ const basicQuery = `
         slug
         startAt
         primaryContact
+        city
+        countryCode
         events(filter: { videogameId: 1386 }) {
           id
           name
@@ -163,10 +165,6 @@ function getApiKeyRotator(keys: string[]) {
 }
 
 async function cacheBasicTournaments() {
-  // Set a maximum runtime for GitHub Actions
-  const startTime = Date.now();
-  const MAX_RUNTIME_MS = 4 * 60 * 1000; // 4 minutes (under GH Actions 5 min timeout)
-  
   let existingTournaments: any[] = [];
   let startFromScratch = false;
   try {
@@ -228,12 +226,6 @@ async function cacheBasicTournaments() {
     dateChunkGroups.map(async (chunks, idx) => {
       const apiKey = STARTGG_API_KEYS[idx];
       for (const { start, end } of chunks) {
-        // Check if we're approaching the time limit
-        if (Date.now() - startTime > MAX_RUNTIME_MS) {
-          console.log("⏱️ Approaching GitHub Actions timeout limit, saving progress and exiting");
-          break;
-        }
-        
         const chunkStartTimestamp = Math.floor(start.getTime() / 1000);
         const chunkEndTimestamp = Math.floor(end.getTime() / 1000);
 
@@ -281,29 +273,6 @@ async function cacheBasicTournaments() {
             }
           }
         } while (page <= totalPages);
-
-        if (newTournaments.length > 0) {
-          // Merge and deduplicate
-          const tournamentMap = new Map();
-          for (const tournament of existingTournaments) {
-            if (tournament.id) tournamentMap.set(tournament.id, tournament);
-          }
-          for (const tournament of newTournaments) {
-            if (tournament.id) tournamentMap.set(tournament.id, tournament);
-          }
-          const basicTournaments = Array.from(tournamentMap.values());
-          const cacheData = { tournaments: { nodes: basicTournaments } };
-
-          try {
-            await uploadCache(cacheData);
-            console.log(`✅ Partial cache updated! Now contains ${basicTournaments.length} tournaments`);
-            // Update existingTournaments for next chunk
-            existingTournaments = basicTournaments;
-            newTournaments.length = 0; // Clear newTournaments for next chunk
-          } catch (uploadError) {
-            console.error("❌ Failed to upload partial cache to S3:", uploadError);
-          }
-        }
       }
     })
   );

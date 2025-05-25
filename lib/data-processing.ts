@@ -536,7 +536,7 @@ export function processberkeleyData(data: { tournaments: any }, playerName?: str
     return {
       summary: {
         totalPlayers: 0,
-        totalTournaments: 0,
+        totalTournaments: 1,
         averageEntrants: 0,
         upsetRate: "0%",
       },

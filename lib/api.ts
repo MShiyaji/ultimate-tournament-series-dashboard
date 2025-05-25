@@ -1,4 +1,5 @@
 import { S3Client, GetObjectCommand } from "@aws-sdk/client-s3";
+import { useState } from "react";
 
 const API_URL = "https://api.start.gg/gql/alpha";
 const s3 = new S3Client({
@@ -118,8 +119,9 @@ function chunkArray<T>(array: T[], n: number): T[][] {
 export async function fetchberkeleyTournaments(
   startDate: string,
   endDate: string,
-  seriesInputs: { tournamentSeriesName: string; primaryContact: string }[],
-  playerName: string 
+  seriesInputs: { tournamentSeriesName: string; primaryContact: string; strictMatch?: boolean; city?: string; countryCode?: string }[],
+  playerName: string,
+  // Remove global city/countryCode here, now per-series
 ) {
   // Download and parse cache from S3
   let cacheData: any = {};
@@ -142,21 +144,58 @@ export async function fetchberkeleyTournaments(
     return tournamentDate >= start && tournamentDate <= end;
   });
 
-  // 2. Filter by seriesInputs (series name or primary contact)
+
+  // 2. Filter by seriesInputs (series name, primary contact, city, countryCode)
   if (seriesInputs && seriesInputs.length > 0) {
     tournaments = tournaments.filter(tournament => {
       return seriesInputs.some(input => {
-        const tournamentSeriesName = input.tournamentSeriesName?.trim();
-        const primaryContact = input.primaryContact?.trim();
+        const tournamentSeriesName = input.tournamentSeriesName?.trim().toLowerCase();
+        const primaryContact = input.primaryContact?.trim().toLowerCase();
+        const strictMatch = !!input.strictMatch;
+        const city = input.city?.trim().toLowerCase();
+        const countryCode = input.countryCode?.trim().toLowerCase();
+
         let nameMatch = false;
+        let slugMatch = false;
         let contactMatch = false;
-        if (tournamentSeriesName && tournament.name) {
-          nameMatch = tournament.name.toLowerCase().includes(tournamentSeriesName.toLowerCase());
+        let cityMatch = false;
+        let countryMatch = false;
+
+        if (tournamentSeriesName) {
+          if (tournament.name) {
+            nameMatch = tournament.name.toLowerCase().includes(tournamentSeriesName);
+          }
+          if (tournament.slug) {
+            slugMatch = tournament.slug.toLowerCase().includes(tournamentSeriesName);
+          }
         }
         if (primaryContact && tournament.primaryContact) {
-          contactMatch = tournament.primaryContact.toLowerCase().includes(primaryContact.toLowerCase());
+          contactMatch = tournament.primaryContact.toLowerCase().includes(primaryContact);
         }
-        return (tournamentSeriesName && nameMatch) || (primaryContact && contactMatch);
+        if (city && (tournament.city || tournament.location)) {
+          cityMatch =
+            (tournament.city && tournament.city.toLowerCase().includes(city)) ||
+            (tournament.location && tournament.location.toLowerCase().includes(city));
+        } else {
+          cityMatch = true; // If no city filter, always match
+        }
+        if (countryCode && tournament.countryCode) {
+          countryMatch = tournament.countryCode.toLowerCase() === countryCode;
+        } else {
+          countryMatch = true; // If no country filter, always match
+        }
+
+        if (strictMatch && tournamentSeriesName && primaryContact) {
+          // Require BOTH series name (in name or slug) AND primary contact, plus city/country if provided
+          return (nameMatch || slugMatch) && contactMatch && cityMatch && countryMatch;
+        } else {
+          // Default: series name (in name or slug) OR primary contact, plus city/country if provided
+          return (
+            ((tournamentSeriesName && (nameMatch || slugMatch)) || (primaryContact && contactMatch)) &&
+            cityMatch &&
+            countryMatch
+          );
+        }
       });
     });
   }
@@ -216,3 +255,4 @@ export async function fetchberkeleyTournaments(
 
   return { tournaments: { nodes: tournaments } };
 }
+
