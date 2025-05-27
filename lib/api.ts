@@ -172,15 +172,19 @@ export async function fetchberkeleyTournaments(
         if (primaryContact && tournament.primaryContact) {
           contactMatch = tournament.primaryContact.toLowerCase().includes(primaryContact);
         }
-        if (city) {
+        if (city && (tournament.city || tournament.location)) {
           cityMatch =
             (tournament.city && tournament.city.toLowerCase().includes(city)) ||
             (tournament.location && tournament.location.toLowerCase().includes(city));
+        } else if (city && !tournament.city && !tournament.location) {
+          cityMatch = false; // If city provided but not in tournament, do not match
         } else {
           cityMatch = true; // If no city filter, always match
         }
-        if (countryCode) {
+        if (countryCode && tournament.countryCode) {
           countryMatch = tournament.countryCode.toLowerCase() === countryCode;
+        } else if (countryCode && !tournament.countryCode) {
+          countryMatch = false; // If countryCode provided but not in tournament, do not match
         } else {
           countryMatch = true; // If no country filter, always match
         }
@@ -204,29 +208,7 @@ export async function fetchberkeleyTournaments(
   tournaments = tournaments.map(tournament => ({
     ...tournament,
     events: (tournament.events || []).filter(
-      (event: any) => {
-        const eventName = event.name?.toLowerCase() || "";
-        // Try to find the matching series input for this tournament
-        let seriesName = "";
-        if (seriesInputs && seriesInputs.length > 0) {
-          const match = seriesInputs.find(input => {
-            const sName = input.tournamentSeriesName?.trim().toLowerCase();
-            return sName && (
-              (tournament.name && tournament.name.toLowerCase().includes(sName)) ||
-              (tournament.slug && tournament.slug.toLowerCase().includes(sName))
-            );
-          });
-          if (match?.tournamentSeriesName) {
-            seriesName = match.tournamentSeriesName.trim().toLowerCase();
-          }
-        }
-        return (
-          eventName.includes("singles") ||
-          eventName.includes("1v1") ||
-          eventName.includes("singles bracket") ||
-          (seriesName && eventName.includes(seriesName))
-        );
-      }
+      (event: any) => event.name && (event.name.toLowerCase().includes("singles") || event.name.toLowerCase().includes() || event.name.toLowerCase().includes("singles bracket") 
     ),
   })).filter(t => t.events.length > 0);
 
