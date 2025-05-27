@@ -172,14 +172,14 @@ export async function fetchberkeleyTournaments(
         if (primaryContact && tournament.primaryContact) {
           contactMatch = tournament.primaryContact.toLowerCase().includes(primaryContact);
         }
-        if (city && (tournament.city || tournament.location)) {
+        if (city) {
           cityMatch =
             (tournament.city && tournament.city.toLowerCase().includes(city)) ||
             (tournament.location && tournament.location.toLowerCase().includes(city));
         } else {
           cityMatch = true; // If no city filter, always match
         }
-        if (countryCode && tournament.countryCode) {
+        if (countryCode) {
           countryMatch = tournament.countryCode.toLowerCase() === countryCode;
         } else {
           countryMatch = true; // If no country filter, always match
