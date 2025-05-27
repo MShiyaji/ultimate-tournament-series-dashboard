@@ -120,8 +120,7 @@ export async function fetchberkeleyTournaments(
   startDate: string,
   endDate: string,
   seriesInputs: { tournamentSeriesName: string; primaryContact: string; strictMatch?: boolean; city?: string; countryCode?: string }[],
-  playerName: string,
-  // Remove global city/countryCode here, now per-series
+  playerName: string
 ) {
   // Download and parse cache from S3
   let cacheData: any = {};
@@ -208,7 +207,29 @@ export async function fetchberkeleyTournaments(
   tournaments = tournaments.map(tournament => ({
     ...tournament,
     events: (tournament.events || []).filter(
-      (event: any) => event.name && (event.name.toLowerCase().includes("singles") || event.name.toLowerCase().includes() || event.name.toLowerCase().includes("singles bracket") 
+      (event: any) => {
+        const eventName = event.name?.toLowerCase() || "";
+        // Try to find the matching series input for this tournament
+        let seriesName = "";
+        if (seriesInputs && seriesInputs.length > 0) {
+          const match = seriesInputs.find(input => {
+            const sName = input.tournamentSeriesName?.trim().toLowerCase();
+            return sName && (
+              (tournament.name && tournament.name.toLowerCase().includes(sName)) ||
+              (tournament.slug && tournament.slug.toLowerCase().includes(sName))
+            );
+          });
+          if (match?.tournamentSeriesName) {
+            seriesName = match.tournamentSeriesName.trim().toLowerCase();
+          }
+        }
+        return (
+          eventName.includes("singles") ||
+          eventName.includes("1v1") ||
+          eventName.includes("singles bracket") ||
+          (seriesName && eventName.includes(seriesName))
+        );
+      }
     ),
   })).filter(t => t.events.length > 0);
 
