@@ -104,7 +104,7 @@ function shouldExitForGithubActionsLimits() {
 
 // Download
 async function downloadCache() {
-  const command = new GetObjectCommand({ Bucket: process.env.AWS_BUCKET_NAME, Key: process.env.AWS_CACHE_KEY });
+  const command = new GetObjectCommand({ Bucket: process.env.AWS_BUCKET_NAME, Key: CACHE_KEY });
   const response = await s3.send(command);
   const text = await response.Body.transformToString();
   return JSON.parse(text);
