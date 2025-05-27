@@ -76,52 +76,30 @@ function createAdaptiveDelay(initial = 200, min = 0, max = 5000, step = 100) {
   };
 }
 
-async function fetchFromAPI(query: string, variables: Record<string, any>, apiKey: string, retries = 3) {
-  for (let attempt = 1; attempt <= retries; attempt++) {
-    try {
-      // Add timeout to prevent hanging requests
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
-      
-      const response = await fetch(API_URL, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${apiKey}`,
-        },
-        body: JSON.stringify({ query, variables }),
-        signal: controller.signal
-      });
-      
-      clearTimeout(timeoutId);
-      
-      if (!response.ok) {
-        const errorText = await response.text();
-        if (response.status === 429) {
-          console.log(`⚠️ Rate limit hit, waiting longer before retry (attempt ${attempt}/${retries})`);
-          await delay(10000 * attempt); // Progressive backoff
-          continue;
-        }
-        throw new Error(`API request failed with status ${response.status}: ${errorText}`);
-      }
+const GITHUB_ACTIONS_MAX_RUNTIME_MS = 5 * 60 * 1000; // 5 minutes
+const GITHUB_ACTIONS_MAX_REQUESTS_PER_MIN = 50;
 
-      const data = await response.json();
-      if (data.errors) throw new Error(data.errors.map((e: any) => e.message).join(", "));
+let githubActionsStartTime = Date.now();
+let githubActionsRequestCount = 0;
+let githubActionsWindowStart = Date.now();
 
-      return data.data;
-    } catch (error) {
-      if (error.name === 'AbortError') {
-        console.log(`⏱️ Request timed out (attempt ${attempt}/${retries})`);
-      } else {
-        console.error(`❌ API error (attempt ${attempt}/${retries}):`, error.message);
-      }
-      
-      if (attempt === retries) throw error;
-      
-      // Add exponential backoff
-      await delay(Math.min(2000 * Math.pow(2, attempt), 30000));
-    }
+function shouldExitForGithubActionsLimits() {
+  // Check runtime
+  if (Date.now() - githubActionsStartTime > GITHUB_ACTIONS_MAX_RUNTIME_MS) {
+    console.error("⏰ Exiting: Hit GitHub Actions max runtime limit.");
+    process.exit(1);
   }
+  // Check API request rate
+  if (Date.now() - githubActionsWindowStart > 60 * 1000) {
+    githubActionsWindowStart = Date.now();
+    githubActionsRequestCount = 0;
+  }
+  if (githubActionsRequestCount >= GITHUB_ACTIONS_MAX_REQUESTS_PER_MIN) {
+    const waitMs = 60 * 1000 - (Date.now() - githubActionsWindowStart);
+    console.log(`⏳ Hit GitHub Actions API rate limit, waiting ${Math.ceil(waitMs/1000)}s...`);
+    return delay(waitMs);
+  }
+  return Promise.resolve();
 }
 
 // Download
@@ -169,8 +147,6 @@ async function cacheBasicTournaments() {
   let startFromScratch = false;
   try {
     existingTournaments = await fetchCachedBasicTournaments();
-    
-    // Verify we got an array back
     if (!Array.isArray(existingTournaments)) {
       console.log("⚠️ Cache returned non-array data. Treating as empty array.");
       existingTournaments = [];
@@ -199,6 +175,20 @@ async function cacheBasicTournaments() {
   const existingIds = new Set(existingTournaments.map(t => t.id));
   const newTournaments: any[] = [];
 
+  // --- Add this block for weekly 30-day lookback ---
+  // If today is Sunday (0) or Monday (1), add a 30-day lookback chunk
+  const today = new Date();
+  const dayOfWeek = today.getDay(); // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
+  let lookbackChunk: { start: Date; end: Date } | null = null;
+  if (dayOfWeek === 0 || dayOfWeek === 1) {
+    const lookbackStart = new Date(today);
+    lookbackStart.setDate(today.getDate() - 30);
+    lookbackStart.setHours(0, 0, 0, 0);
+    lookbackChunk = { start: lookbackStart, end: new Date(today) };
+    console.log("🔁 Weekly lookback: Adding extra chunk for the last 30 days.");
+  }
+  // --- End of new block ---
+
   // 1. Build all date chunks first
   let dateChunks: { start: Date; end: Date }[] = [];
   let currentStart = startDate;
@@ -210,6 +200,12 @@ async function cacheBasicTournaments() {
     });
     currentStart = currentEnd > endDate ? endDate : currentEnd;
   }
+
+  // --- Add the lookback chunk if needed ---
+  if (lookbackChunk) {
+    dateChunks.push(lookbackChunk);
+  }
+  // --- End of addition ---
 
   // 2. Split dateChunks among API keys
   function chunkArray<T>(array: T[], n: number): T[][] {
@@ -323,6 +319,57 @@ async function cacheBasicTournaments() {
     }
   } else {
     console.log("ℹ️ No new tournaments found. Cache is up to date.");
+  }
+}
+
+// In fetchFromAPI, increment the request count and check limits:
+async function fetchFromAPI(query: string, variables: Record<string, any>, apiKey: string, retries = 3) {
+  for (let attempt = 1; attempt <= retries; attempt++) {
+    await shouldExitForGithubActionsLimits(); // <-- Add this line
+    githubActionsRequestCount++; // <-- Increment for each API call
+    try {
+      // Add timeout to prevent hanging requests
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+      
+      const response = await fetch(API_URL, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify({ query, variables }),
+        signal: controller.signal
+      });
+      
+      clearTimeout(timeoutId);
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        if (response.status === 429) {
+          console.log(`⚠️ Rate limit hit, waiting longer before retry (attempt ${attempt}/${retries})`);
+          await delay(10000 * attempt); // Progressive backoff
+          continue;
+        }
+        throw new Error(`API request failed with status ${response.status}: ${errorText}`);
+      }
+
+      const data = await response.json();
+      if (data.errors) throw new Error(data.errors.map((e: any) => e.message).join(", "));
+
+      return data.data;
+    } catch (error) {
+      if (error.name === 'AbortError') {
+        console.log(`⏱️ Request timed out (attempt ${attempt}/${retries})`);
+      } else {
+        console.error(`❌ API error (attempt ${attempt}/${retries}):`, error.message);
+      }
+      
+      if (attempt === retries) throw error;
+      
+      // Add exponential backoff
+      await delay(Math.min(2000 * Math.pow(2, attempt), 30000));
+    }
   }
 }
 
