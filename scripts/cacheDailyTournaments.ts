@@ -373,10 +373,19 @@ async function fetchFromAPI(query: string, variables: Record<string, any>, apiKe
   }
 }
 
+function timeLeftMs() {
+  return GITHUB_ACTIONS_MAX_RUNTIME_MS - (Date.now() - githubActionsStartTime);
+}
+
 // Run only if this file is called directly
 if (require.main === module) {
   cacheBasicTournaments().catch((err) => {
     console.error("❌ Script error:", err);
     process.exit(1);
   });
+}
+
+if (timeLeftMs() < 60000) { // less than 1 minute left
+  console.log("⏰ Not enough time left to safely process another chunk/page. Exiting early.");
+  process.exit(0);
 }
