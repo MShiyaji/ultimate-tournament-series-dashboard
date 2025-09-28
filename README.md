@@ -4,11 +4,10 @@ A modern web dashboard for tracking, managing, and visualizing results and stati
 
 ## Features
 
-- **Tournament Management**: Create, edit, and view tournaments and their participants.
 - **Dynamic Standings**: Track real-time rankings and match outcomes.
-- **Rich Data Visualization**: Interactive charts and analytics using [Recharts](https://recharts.org/).
-- **Responsive UI**: Built with Radix UI and TailwindCSS for an accessible, fast, and beautiful experience.
-- **Authentication & Storage**: Integrated with Supabase for authentication and S3 for storage.
+- **Rich Data Visualization**: Interactive charts and analytics
+- **Responsive UI**: Built with TailwindCSS for an accessible, fast, and beautiful experience.
+- **Authentication & Storage**: Integrated with S3 for storage.
 - **Export & Share**: Download and share stats, results, or visualizations.
 - **Dark/Light Themes**: User preference support via Next Themes.
 - **Custom Components**: Modular React components and hooks for easy extensibility.
@@ -16,10 +15,8 @@ A modern web dashboard for tracking, managing, and visualizing results and stati
 ## Technologies
 
 - **Framework**: [Next.js](https://nextjs.org/) (TypeScript)
-- **UI/UX**: [Radix UI](https://www.radix-ui.com/), [TailwindCSS](https://tailwindcss.com/)
+- **UI/UX**: [TailwindCSS](https://tailwindcss.com/)
 - **State, Forms & Validation**: [React Hook Form](https://react-hook-form.com/), [Zod](https://zod.dev/)
-- **Charts**: [Recharts](https://recharts.org/)
-- **Auth & DB**: [Supabase](https://supabase.com/)
 - **Storage**: [AWS S3 SDK](https://docs.aws.amazon.com/AWSJavaScriptSDK/v3/latest/)
 - **Other**: [Lucide Icons](https://lucide.dev/), [cmdk](https://cmdk.vercel.app/), [Embla Carousel](https://www.embla-carousel.com/)
 
