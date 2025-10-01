@@ -73,7 +73,7 @@ export function StatsCards({ stats, playerName, isExporting }) {
           <TrendingUp className="h-3 w-3 text-gray-400" />
         </div>
         <div className="text-xl font-bold text-white">{displayStats.upsetRate}</div>
-        <p className="text-xs text-gray-400">Lower > higher seeds</p>
+        <p className="text-xs text-gray-400">Lower &gt; higher seeds</p>
       </div>
     </div>
   )
