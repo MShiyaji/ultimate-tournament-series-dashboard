@@ -1,5 +1,5 @@
 import { S3Client, GetObjectCommand, PutObjectCommand } from "@aws-sdk/client-s3";
-import { useState } from "react";
+
 
 const API_URL = "https://www.start.gg/api/-/gql";
 
