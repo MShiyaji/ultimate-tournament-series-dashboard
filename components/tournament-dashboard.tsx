@@ -7,6 +7,7 @@ import { TopPerformersTable } from "@/components/top-performers-table"
 import { SeedPerformanceTable } from "@/components/seed-performance-table"
 import { ConsistencyTable } from "@/components/consistency-table"
 import { RisingStarsTable } from "@/components/rising-stars-table"
+import { MostAttendedTable } from "@/components/most-attended-table"
 import { FullListView } from "@/components/full-list-view" // Add this import
 import { Button } from "@/components/ui/button"
 import { RefreshCw } from "lucide-react"
@@ -52,6 +53,7 @@ export function TournamentDashboard() {
     consistentPlayers?: any[];
     tournamentNames?: string[];
     tournamentSlugs?: string[];
+    mostAttended?: any[];
   } | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState("")
@@ -102,7 +104,7 @@ export function TournamentDashboard() {
     { label: "Fall", value: "fall", start: "09-01", end: "11-30" },
     { label: "Winter", value: "winter", start: "12-01", end: "02-28" },
   ];
-  const YEARS = Array.from({ length: 8 }, (_, i) => 2018 + i);
+  const YEARS = Array.from({ length: new Date().getFullYear() - 2018 + 1 }, (_, i) => 2018 + i);
 
   const [selectedSeason, setSelectedSeason] = useState("");
   const [selectedYear, setSelectedYear] = useState("");
@@ -1218,6 +1220,12 @@ export function TournamentDashboard() {
                             players={tournamentData.consistentPlayers} 
                             filterName={activePlayerName}
                             onViewFullList={() => showFullList("consistentPlayers")}
+                          />
+                        </div>
+                        <div className="bg-gradient-to-br from-teal-200 via-cyan-100 to-cyan-300 rounded-lg p-3 shadow">
+                          <MostAttendedTable 
+                            players={tournamentData.mostAttended || []} 
+                            filterName={activePlayerName}
                           />
                         </div>
                       </div>

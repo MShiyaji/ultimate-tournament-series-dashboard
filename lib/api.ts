@@ -1,4 +1,4 @@
-import { S3Client, GetObjectCommand } from "@aws-sdk/client-s3";
+import { S3Client, GetObjectCommand, PutObjectCommand } from "@aws-sdk/client-s3";
 import { useState } from "react";
 
 const API_URL = "https://www.start.gg/api/-/gql";
@@ -19,7 +19,7 @@ if (process.env.AWS_REGION && process.env.AWS_ACCESS_KEY_ID && process.env.AWS_S
 const BUCKET_NAME = "ultimate-tournament-data";
 const CACHE_KEY = "basic-cache.json";
 
-async function downloadCacheFromS3() {
+export async function downloadCacheFromS3() {
   if (!s3) {
     throw new Error("S3 not configured");
   }
@@ -32,6 +32,19 @@ async function downloadCacheFromS3() {
   
   const text = await response.Body.transformToString();
   return JSON.parse(text);
+}
+
+export async function uploadCache(data: any) {
+  if (!s3) {
+    throw new Error("S3 not configured");
+  }
+  const command = new PutObjectCommand({
+    Bucket: BUCKET_NAME,
+    Key: CACHE_KEY,
+    Body: JSON.stringify(data),
+    ContentType: "application/json",
+  });
+  await s3.send(command);
 }
 
 // Basic tournament query for direct API calls
@@ -194,7 +207,7 @@ function getApiKeyRotator(keys: string[]) {
   };
 }
 
-async function fetchFromAPI(query: string, variables: Record<string, any>, apiKey: string, adaptiveDelay?: ReturnType<typeof createAdaptiveDelay>, retries = 3): Promise<any> {
+export async function fetchFromAPI(query: string, variables: Record<string, any>, apiKey: string, adaptiveDelay?: ReturnType<typeof createAdaptiveDelay>, retries = 3): Promise<any> {
   let lastError;
   for (let attempt = 0; attempt <= retries; attempt++) {
     const response = await fetch(API_URL, {
@@ -267,10 +280,10 @@ const tournamentByNameQuery = `
 `;
 
 async function fetchTournamentsByName(tournamentNames: string[], startDate: string, endDate: string) {
-  const apiKey = process.env.STARTGG_API_KEY;
-  if (!apiKey) {
-    throw new Error("STARTGG_API_KEY environment variable is required");
+  if (STARTGG_API_KEYS.length === 0) {
+    throw new Error("STARTGG_API_KEYS environment variable is required");
   }
+  const getNextKey = getApiKeyRotator(STARTGG_API_KEYS);
 
   const startTimestamp = Math.floor(new Date(startDate).getTime() / 1000);
   const endTimestamp = Math.floor(new Date(endDate).getTime() / 1000);
@@ -278,6 +291,7 @@ async function fetchTournamentsByName(tournamentNames: string[], startDate: stri
   let allTournaments: any[] = [];
 
   for (const name of tournamentNames) {
+    const apiKey = getNextKey();
     console.log(`🎯 Fetching tournaments with name: "${name}"`);
 
     const response = await fetch(API_URL, {
@@ -437,10 +451,10 @@ export async function fetchberkeleyTournaments(
   console.log(`🎮 Found ${tournaments.length} tournaments with ${tournaments.reduce((acc, t) => acc + t.events.length, 0)} events total`);
 
   // 4. Fetch standings for each event
-  const apiKey = process.env.STARTGG_API_KEY;
-  if (!apiKey) {
-    console.warn("⚠️ No STARTGG_API_KEY found, skipping standings fetch");
+  if (STARTGG_API_KEYS.length === 0) {
+    console.warn("⚠️ No STARTGG_API_KEYS found, skipping standings fetch");
   } else {
+    const getNextKey = getApiKeyRotator(STARTGG_API_KEYS);
     console.log(`📊 Fetching standings for ${tournaments.reduce((acc, t) => acc + t.events.length, 0)} events...`);
     
     // Process tournaments sequentially to avoid overwhelming the API
@@ -450,7 +464,7 @@ export async function fetchberkeleyTournaments(
           const data = await fetchFromAPI(
             eventStandingsQuery,
             { eventId: event.id },
-            apiKey
+            getNextKey()
           );
           event.standings = data?.event?.standings || { nodes: [] };
           

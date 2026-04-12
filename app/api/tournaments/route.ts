@@ -15,18 +15,22 @@ function generateCacheKey({
   endDate,
   seriesInputs,
   playerName,
+  city,
+  countryCode,
 }: {
   startDate: string;
   endDate: string;
   seriesInputs: { tournamentSeriesName: string; primaryContact: string;}[];
   playerName: string;
+  city?: string;
+  countryCode?: string;
 }): string {
   // Use a stable stringification for the array
-  return JSON.stringify({ startDate, endDate, seriesInputs, playerName });
+  return JSON.stringify({ startDate, endDate, seriesInputs, playerName, city, countryCode });
 }
 
 export async function POST(req: Request) {
-  const { startDate, endDate, seriesInputs, playerName, attendanceRatio } = await req.json();
+  const { startDate, endDate, seriesInputs, playerName, attendanceRatio, city, countryCode } = await req.json();
 
   if (
     !startDate ||
@@ -42,7 +46,7 @@ export async function POST(req: Request) {
     return new Response("Missing required fields", { status: 400 });
   }
 
-  const cacheKey = generateCacheKey({ startDate, endDate, seriesInputs, playerName });
+  const cacheKey = generateCacheKey({ startDate, endDate, seriesInputs, playerName, city, countryCode });
 
   let rawTournamentData;
 
@@ -51,9 +55,8 @@ export async function POST(req: Request) {
     console.log("✅ Using cached tournament data");
     rawTournamentData = { tournaments: { nodes: cached.data } };
   } else {
-    console.log("⏳ Fetching fresh tournament data");
-    // fetchberkeleyTournaments already returns { tournaments: { nodes: [...] } }
-    rawTournamentData = await fetchberkeleyTournaments(startDate, endDate, seriesInputs, playerName);
+    console.log("Fetching new tournament data");
+    rawTournamentData = await fetchberkeleyTournaments(startDate, endDate, seriesInputs, playerName, city, countryCode);
     basicTournamentCache.set(cacheKey, {
       data: rawTournamentData.tournaments.nodes,
       timestamp: Date.now(),

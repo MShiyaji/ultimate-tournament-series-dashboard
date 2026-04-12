@@ -65,7 +65,7 @@ export function processberkeleyData(data: { tournaments: any }, playerName?: str
     let matchCount = 0
 
     // Process each tournament
-    tournaments.forEach((tournament: { name: string; events: any[] }) => {
+    tournaments.forEach((tournament: { name: string; id?: any; events: any[] }) => {
       if (!tournament) return
 
       console.log(`Processing tournament: ${tournament.name}`)
@@ -117,6 +117,7 @@ export function processberkeleyData(data: { tournaments: any }, playerName?: str
               placements: [],
               seeds: [],
               tournaments: 0,
+              tournamentIds: new Set(),
               tournamentNumbers: [],
               entrants: [],
               date: []
@@ -126,7 +127,9 @@ export function processberkeleyData(data: { tournaments: any }, playerName?: str
           const playerData = playerResults.get(playerId)
           playerData.placements.push(placement)
           playerData.seeds.push(seed)
-          playerData.tournaments++
+          const tournamentKey = tournament.id || tournament.name;
+          playerData.tournamentIds.add(tournamentKey);
+          playerData.tournaments = playerData.tournamentIds.size;
 
           playerData.entrants.push(numEntrants)
           playerData.date.push(date)
@@ -519,6 +522,18 @@ export function processberkeleyData(data: { tournaments: any }, playerName?: str
 
     console.log("Data processing complete")
 
+    // Most attended: players sorted by number of unique tournaments attended
+    const mostAttended = [...validPlayers]
+      .sort((a, b) => b.tournaments - a.tournaments)
+      .slice(0, 100)
+      .map((p) => ({
+        id: p.id,
+        name: p.name,
+        tournaments: p.tournaments,
+        avgPlacement: p.avgPlacement,
+        bestPlacement: p.bestPlacement,
+      }));
+
     return {
       summary,
       topPerformers,
@@ -526,6 +541,7 @@ export function processberkeleyData(data: { tournaments: any }, playerName?: str
       consistentPlayers,
       performanceData,
       risingStars,
+      mostAttended,
       tournamentNames: filteredTournamentNames,
       tournamentSlugs: filteredTournamentSlugs,
       allPlayerNames, 
@@ -545,6 +561,7 @@ export function processberkeleyData(data: { tournaments: any }, playerName?: str
       consistentPlayers: [],
       performanceData: [],
       risingStars: [],
+      mostAttended: [],
       tournamentNames: [],
       tournamentSlugs: [],
       allPlayerNames: [], 

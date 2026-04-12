@@ -3,7 +3,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { ArrowLeft, Trophy, TrendingUp, Target } from "lucide-react"
+import { Input } from "@/components/ui/input"
+import { ArrowLeft, Trophy, TrendingUp, Target, Search } from "lucide-react"
 import { useIsMobile } from "@/hooks/use-mobile"
 
 interface FullListViewProps {
@@ -18,22 +19,30 @@ interface FullListViewProps {
 
 export function FullListView({ data, onGoBack, filterName }: FullListViewProps) {
   const [currentPage, setCurrentPage] = useState(1);
+  const [searchQuery, setSearchQuery] = useState("");
   const playersPerPage = 20;
   const isMobile = useIsMobile();
 
   if (!data) return null;
 
-  // Filter players if filterName is provided
-  const filteredPlayers = filterName?.trim()
-    ? data.players.filter((p) =>
-        p.name?.toLowerCase().includes(filterName.trim().toLowerCase())
-      )
-    : data.players;
+  // Filter players by filterName prop and local search query
+  const filteredPlayers = data.players.filter((p) => {
+    const name = p.name?.toLowerCase() || "";
+    const matchesFilter = !filterName?.trim() || name.includes(filterName.trim().toLowerCase());
+    const matchesSearch = !searchQuery.trim() || name.includes(searchQuery.trim().toLowerCase());
+    return matchesFilter && matchesSearch;
+  });
 
   // Pagination
   const totalPages = Math.ceil(filteredPlayers.length / playersPerPage);
   const startIndex = (currentPage - 1) * playersPerPage;
   const currentPlayers = filteredPlayers.slice(startIndex, startIndex + playersPerPage);
+
+  // Get the player's rank in the original (unfiltered) list
+  const getOriginalRank = (player: any) => {
+    const idx = data.players.indexOf(player);
+    return idx >= 0 ? idx + 1 : startIndex + 1;
+  };
 
   // Get icon based on type
   const getIcon = () => {
@@ -51,19 +60,19 @@ export function FullListView({ data, onGoBack, filterName }: FullListViewProps) 
     switch (data.type) {
       case "topPerformers":
         return (
-          <Table className="w-full text-sm">
+          <Table className="w-full table-fixed text-sm">
             <TableHeader>
               <TableRow>
                 <TableHead className={isMobile ? "w-12 px-2" : "w-16"}>Rank</TableHead>
                 <TableHead className={isMobile ? "px-2" : ""}>Player</TableHead>
-                {!isMobile && <TableHead className="text-right">Performance Score</TableHead>}
-                {!isMobile && <TableHead className="text-right">Best Placement</TableHead>}
-                <TableHead className={`text-right ${isMobile ? "w-16" : ""}`}>Events</TableHead>
+                {!isMobile && <TableHead className="text-right w-36">Score</TableHead>}
+                {!isMobile && <TableHead className="text-right w-32">Best</TableHead>}
+                <TableHead className={`text-right ${isMobile ? "w-16" : "w-24"}`}>Events</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {currentPlayers.map((player, index) => {
-                const rank = startIndex + index + 1;
+                const rank = getOriginalRank(player);
                 let medalColor = "";
                 if (rank === 1) medalColor = "#FFD700";
                 else if (rank === 2) medalColor = "#C0C0C0";
@@ -76,8 +85,8 @@ export function FullListView({ data, onGoBack, filterName }: FullListViewProps) 
                         {rank}
                       </span>
                     </TableCell>
-                    <TableCell className={`font-medium ${isMobile ? "px-2" : ""}`}>
-                      <div>{player.name}</div>
+                    <TableCell className={`font-medium truncate ${isMobile ? "px-2" : ""}`}>
+                      <div className="truncate">{player.name}</div>
                       {isMobile && (
                         <div className="text-xs text-gray-500">
                           Score: {player.performanceScore || player.averageNormalizedPlacement}
@@ -88,14 +97,14 @@ export function FullListView({ data, onGoBack, filterName }: FullListViewProps) 
                       )}
                     </TableCell>
                     {!isMobile && (
-                      <TableCell className="text-right">
+                      <TableCell className="text-right tabular-nums">
                         {player.performanceScore || player.averageNormalizedPlacement}
                       </TableCell>
                     )}
                     {!isMobile && (
-                      <TableCell className="text-right">{player.bestPlacement}</TableCell>
+                      <TableCell className="text-right tabular-nums">{player.bestPlacement}</TableCell>
                     )}
-                    <TableCell className={`text-right ${isMobile ? "px-2" : ""}`}>
+                    <TableCell className={`text-right tabular-nums ${isMobile ? "px-2" : ""}`}>
                       {player.tournaments}
                     </TableCell>
                   </TableRow>
@@ -107,20 +116,20 @@ export function FullListView({ data, onGoBack, filterName }: FullListViewProps) 
 
       case "risingStars":
         return (
-          <Table className="w-full text-sm">
+          <Table className="w-full table-fixed text-sm">
             <TableHeader>
               <TableRow>
                 <TableHead className={isMobile ? "w-12 px-2" : "w-16"}>Rank</TableHead>
                 <TableHead className={isMobile ? "px-2" : ""}>Player</TableHead>
-                {!isMobile && <TableHead className="text-right">Improvement</TableHead>}
-                {!isMobile && <TableHead className="text-right">Early Avg</TableHead>}
-                {!isMobile && <TableHead className="text-right">Late Avg</TableHead>}
-                <TableHead className={`text-right ${isMobile ? "w-16" : ""}`}>Events</TableHead>
+                {!isMobile && <TableHead className="text-right w-36">Improvement</TableHead>}
+                {!isMobile && <TableHead className="text-right w-32">Early Avg</TableHead>}
+                {!isMobile && <TableHead className="text-right w-32">Late Avg</TableHead>}
+                <TableHead className={`text-right ${isMobile ? "w-16" : "w-24"}`}>Events</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {currentPlayers.map((player, index) => {
-                const rank = startIndex + index + 1;
+                const rank = getOriginalRank(player);
                 const improvement = Number(player.improvementScore);
                 const improvementColor =
                   improvement > 0
@@ -134,8 +143,8 @@ export function FullListView({ data, onGoBack, filterName }: FullListViewProps) 
                     <TableCell className={`font-medium ${isMobile ? "px-2" : ""}`}>
                       {rank}
                     </TableCell>
-                    <TableCell className={`font-medium ${isMobile ? "px-2" : ""}`}>
-                      <div>{player.name}</div>
+                    <TableCell className={`font-medium truncate ${isMobile ? "px-2" : ""}`}>
+                      <div className="truncate">{player.name}</div>
                       {isMobile && (
                         <div className="text-xs text-gray-500">
                           <span className={improvementColor}>
@@ -148,21 +157,21 @@ export function FullListView({ data, onGoBack, filterName }: FullListViewProps) 
                       )}
                     </TableCell>
                     {!isMobile && (
-                      <TableCell className={`text-right ${improvementColor}`}>
+                      <TableCell className={`text-right tabular-nums ${improvementColor}`}>
                         {improvement.toFixed(3)}
                       </TableCell>
                     )}
                     {!isMobile && (
-                      <TableCell className="text-right">
+                      <TableCell className="text-right tabular-nums">
                         {Number(player.earlyAvg).toFixed(3)}
                       </TableCell>
                     )}
                     {!isMobile && (
-                      <TableCell className="text-right">
+                      <TableCell className="text-right tabular-nums">
                         <Badge variant="outline">{Number(player.lateAvg).toFixed(3)}</Badge>
                       </TableCell>
                     )}
-                    <TableCell className={`text-right ${isMobile ? "px-2" : ""}`}>
+                    <TableCell className={`text-right tabular-nums ${isMobile ? "px-2" : ""}`}>
                       {player.tournaments}
                     </TableCell>
                   </TableRow>
@@ -174,19 +183,19 @@ export function FullListView({ data, onGoBack, filterName }: FullListViewProps) 
 
       case "seedOutperformers":
         return (
-          <Table className="w-full text-sm">
+          <Table className="w-full table-fixed text-sm">
             <TableHeader>
               <TableRow>
                 <TableHead className={isMobile ? "w-12 px-2" : "w-16"}>Rank</TableHead>
                 <TableHead className={isMobile ? "px-2" : ""}>Player</TableHead>
-                {!isMobile && <TableHead className="text-right">Avg. Upset Factor</TableHead>}
-                {!isMobile && <TableHead className="text-right">Best Upset Factor</TableHead>}
-                <TableHead className={`text-right ${isMobile ? "w-16" : ""}`}>Events</TableHead>
+                {!isMobile && <TableHead className="text-right w-36">Avg. Upset Factor</TableHead>}
+                {!isMobile && <TableHead className="text-right w-36">Best Upset Factor</TableHead>}
+                <TableHead className={`text-right ${isMobile ? "w-16" : "w-24"}`}>Events</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {currentPlayers.map((player, index) => {
-                const rank = startIndex + index + 1;
+                const rank = getOriginalRank(player);
                 const avg = Number(player.avgUpsetFactor);
                 const avgColor =
                   avg > 0
@@ -207,8 +216,8 @@ export function FullListView({ data, onGoBack, filterName }: FullListViewProps) 
                     <TableCell className={`font-medium ${isMobile ? "px-2" : ""}`}>
                       {rank}
                     </TableCell>
-                    <TableCell className={`font-medium ${isMobile ? "px-2" : ""}`}>
-                      <div>{player.name}</div>
+                    <TableCell className={`font-medium truncate ${isMobile ? "px-2" : ""}`}>
+                      <div className="truncate">{player.name}</div>
                       {isMobile && (
                         <div className="text-xs text-gray-500">
                           <span className={avgColor}>
@@ -221,16 +230,16 @@ export function FullListView({ data, onGoBack, filterName }: FullListViewProps) 
                       )}
                     </TableCell>
                     {!isMobile && (
-                      <TableCell className={`text-right ${avgColor}`}>
+                      <TableCell className={`text-right tabular-nums ${avgColor}`}>
                         {isNaN(avg) ? "-" : avg.toFixed(2)}
                       </TableCell>
                     )}
                     {!isMobile && (
-                      <TableCell className={`text-right ${bestColor}`}>
+                      <TableCell className={`text-right tabular-nums ${bestColor}`}>
                         {isNaN(best) ? "-" : best.toFixed(2)}
                       </TableCell>
                     )}
-                    <TableCell className={`text-right ${isMobile ? "px-2" : ""}`}>
+                    <TableCell className={`text-right tabular-nums ${isMobile ? "px-2" : ""}`}>
                       {player.tournaments}
                     </TableCell>
                   </TableRow>
@@ -242,19 +251,19 @@ export function FullListView({ data, onGoBack, filterName }: FullListViewProps) 
 
       case "consistentPlayers":
         return (
-          <Table className="w-full text-sm">
+          <Table className="w-full table-fixed text-sm">
             <TableHeader>
               <TableRow>
                 <TableHead className={isMobile ? "w-12 px-2" : "w-16"}>Rank</TableHead>
                 <TableHead className={isMobile ? "px-2" : ""}>Player</TableHead>
-                {!isMobile && <TableHead className="text-right">Consistency</TableHead>}
-                <TableHead className={`text-right ${isMobile ? "w-16" : ""}`}>Events</TableHead>
-                {!isMobile && <TableHead className="text-right">Variance</TableHead>}
+                {!isMobile && <TableHead className="text-right w-36">Consistency</TableHead>}
+                {!isMobile && <TableHead className="text-right w-32">Variance</TableHead>}
+                <TableHead className={`text-right ${isMobile ? "w-16" : "w-24"}`}>Events</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {currentPlayers.map((player, index) => {
-                const rank = startIndex + index + 1;
+                const rank = getOriginalRank(player);
                 const consistencyValue = typeof player.consistency === "string"
                   ? parseFloat(player.consistency.replace("%", ""))
                   : player.consistency;
@@ -264,8 +273,8 @@ export function FullListView({ data, onGoBack, filterName }: FullListViewProps) 
                     <TableCell className={`font-medium ${isMobile ? "px-2" : ""}`}>
                       {rank}
                     </TableCell>
-                    <TableCell className={`font-medium ${isMobile ? "px-2" : ""}`}>
-                      <div>{player.name}</div>
+                    <TableCell className={`font-medium truncate ${isMobile ? "px-2" : ""}`}>
+                      <div className="truncate">{player.name}</div>
                       {isMobile && (
                         <div className="text-xs text-gray-500">
                           Consistency: {consistencyValue > 90 ? (
@@ -279,7 +288,7 @@ export function FullListView({ data, onGoBack, filterName }: FullListViewProps) 
                       )}
                     </TableCell>
                     {!isMobile && (
-                      <TableCell className="text-right">
+                      <TableCell className="text-right tabular-nums">
                         {consistencyValue > 90 ? (
                           <span className="font-semibold" style={{ color: "#FFD700" }}>
                             {player.consistency}
@@ -289,14 +298,14 @@ export function FullListView({ data, onGoBack, filterName }: FullListViewProps) 
                         )}
                       </TableCell>
                     )}
-                    <TableCell className={`text-right ${isMobile ? "px-2" : ""}`}>
-                      {player.tournaments}
-                    </TableCell>
                     {!isMobile && (
-                      <TableCell className="text-right">
+                      <TableCell className="text-right tabular-nums">
                         {player.seedVariance ?? player.upsetFactorVariance}
                       </TableCell>
                     )}
+                    <TableCell className={`text-right tabular-nums ${isMobile ? "px-2" : ""}`}>
+                      {player.tournaments}
+                    </TableCell>
                   </TableRow>
                 );
               })}
@@ -382,6 +391,18 @@ export function FullListView({ data, onGoBack, filterName }: FullListViewProps) 
           </div>
         </CardHeader>
         <CardContent className={isMobile ? "px-2" : "px-6"}>
+          <div className="relative mb-4">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search players..."
+              value={searchQuery}
+              onChange={(e) => {
+                setSearchQuery(e.target.value);
+                setCurrentPage(1);
+              }}
+              className="pl-9"
+            />
+          </div>
           <div className="overflow-x-auto">
             {renderTable()}
           </div>
