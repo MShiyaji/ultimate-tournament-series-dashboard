@@ -88,7 +88,20 @@ export function RisingStarsTable({ players, filterName, onViewFullList }) {
                       {overallRank}
                     </TableCell>
                     <TableCell className={isMobile ? "px-1" : "px-2"}>
-                      <div className="font-medium leading-tight">{player.name}</div>
+                      <div className="font-medium leading-tight">
+                        {player.userSlug ? (
+                          <a
+                            href={`https://www.start.gg/user/${player.userSlug}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="hover:underline text-blue-600 dark:text-blue-400"
+                          >
+                            {player.name}
+                          </a>
+                        ) : (
+                          player.name
+                        )}
+                      </div>
                       {isMobile && (
                         <div className="text-xs text-gray-500 mt-1 space-y-0.5">
                           <div className={improvementColor}>

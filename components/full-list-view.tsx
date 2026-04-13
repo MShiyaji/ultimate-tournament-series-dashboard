@@ -86,7 +86,20 @@ export function FullListView({ data, onGoBack, filterName }: FullListViewProps) 
                       </span>
                     </TableCell>
                     <TableCell className={`font-medium truncate ${isMobile ? "px-2" : ""}`}>
-                      <div className="truncate">{player.name}</div>
+                      <div className="truncate">
+                        {player.userSlug ? (
+                          <a
+                            href={`https://www.start.gg/user/${player.userSlug}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="hover:underline text-blue-600 dark:text-blue-400"
+                          >
+                            {player.name}
+                          </a>
+                        ) : (
+                          player.name
+                        )}
+                      </div>
                       {isMobile && (
                         <div className="text-xs text-gray-500">
                           Score: {player.performanceScore || player.averageNormalizedPlacement}
@@ -144,7 +157,20 @@ export function FullListView({ data, onGoBack, filterName }: FullListViewProps) 
                       {rank}
                     </TableCell>
                     <TableCell className={`font-medium truncate ${isMobile ? "px-2" : ""}`}>
-                      <div className="truncate">{player.name}</div>
+                      <div className="truncate">
+                        {player.userSlug ? (
+                          <a
+                            href={`https://www.start.gg/user/${player.userSlug}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="hover:underline text-blue-600 dark:text-blue-400"
+                          >
+                            {player.name}
+                          </a>
+                        ) : (
+                          player.name
+                        )}
+                      </div>
                       {isMobile && (
                         <div className="text-xs text-gray-500">
                           <span className={improvementColor}>
@@ -217,7 +243,20 @@ export function FullListView({ data, onGoBack, filterName }: FullListViewProps) 
                       {rank}
                     </TableCell>
                     <TableCell className={`font-medium truncate ${isMobile ? "px-2" : ""}`}>
-                      <div className="truncate">{player.name}</div>
+                      <div className="truncate">
+                        {player.userSlug ? (
+                          <a
+                            href={`https://www.start.gg/user/${player.userSlug}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="hover:underline text-blue-600 dark:text-blue-400"
+                          >
+                            {player.name}
+                          </a>
+                        ) : (
+                          player.name
+                        )}
+                      </div>
                       {isMobile && (
                         <div className="text-xs text-gray-500">
                           <span className={avgColor}>
@@ -274,7 +313,20 @@ export function FullListView({ data, onGoBack, filterName }: FullListViewProps) 
                       {rank}
                     </TableCell>
                     <TableCell className={`font-medium truncate ${isMobile ? "px-2" : ""}`}>
-                      <div className="truncate">{player.name}</div>
+                      <div className="truncate">
+                        {player.userSlug ? (
+                          <a
+                            href={`https://www.start.gg/user/${player.userSlug}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="hover:underline text-blue-600 dark:text-blue-400"
+                          >
+                            {player.name}
+                          </a>
+                        ) : (
+                          player.name
+                        )}
+                      </div>
                       {isMobile && (
                         <div className="text-xs text-gray-500">
                           Consistency: {consistencyValue > 90 ? (

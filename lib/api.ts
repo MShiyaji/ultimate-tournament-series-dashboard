@@ -189,6 +189,9 @@ const eventStandingsQuery = `
               player {
                 id
                 gamerTag
+                user {
+                  slug
+                }
               }
             }
           }

@@ -33,8 +33,6 @@ export function MostAttendedTable({ players, filterName }: { players: any[]; fil
                 <TableHead className={isMobile ? "w-8 px-1" : "w-1/6 px-2 text-center"}>Rank</TableHead>
                 <TableHead className={isMobile ? "px-1 min-w-[120px]" : "w-2/6 px-2"}>Player</TableHead>
                 <TableHead className={isMobile ? "text-right px-1 w-20" : "w-1/6 px-2 text-center"}>Tournaments</TableHead>
-                {!isMobile && <TableHead className="w-1/6 px-2 text-center">Avg Place</TableHead>}
-                {!isMobile && <TableHead className="w-1/6 px-2 text-center">Best Place</TableHead>}
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -46,26 +44,25 @@ export function MostAttendedTable({ players, filterName }: { players: any[]; fil
                       {overallRank}
                     </TableCell>
                     <TableCell className={isMobile ? "px-1" : "px-2"}>
-                      <div className="font-medium leading-tight">{player.name}</div>
-                      {isMobile && (
-                        <div className="text-xs text-gray-500 mt-0.5">
-                          Avg: {player.avgPlacement} · Best: {player.bestPlacement}
-                        </div>
-                      )}
+                      <div className="font-medium leading-tight">
+                        {player.userSlug ? (
+                          <a
+                            href={`https://www.start.gg/user/${player.userSlug}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="hover:underline text-blue-600 dark:text-blue-400"
+                          >
+                            {player.name}
+                          </a>
+                        ) : (
+                          player.name
+                        )}
+                      </div>
+
                     </TableCell>
                     <TableCell className={isMobile ? "text-right px-1 tabular-nums" : "px-2 text-center tabular-nums"}>
                       {player.tournaments}
                     </TableCell>
-                    {!isMobile && (
-                      <TableCell className="px-2 text-center tabular-nums">
-                        {player.avgPlacement}
-                      </TableCell>
-                    )}
-                    {!isMobile && (
-                      <TableCell className="px-2 text-center tabular-nums">
-                        {player.bestPlacement}
-                      </TableCell>
-                    )}
                   </TableRow>
                 );
               })}

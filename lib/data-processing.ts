@@ -89,7 +89,7 @@ export function processberkeleyData(data: { tournaments: any }, playerName?: str
         console.log(`Event ${event.name} has ${event.standings.nodes.length} standings entries`)
 
         // Process standings for this event
-        event.standings.nodes.forEach((standing: { entrant: { participants: { player: { gamerTag: any } }[]; id: any; initialSeedNum: number }; placement: any }) => {
+        event.standings.nodes.forEach((standing: { entrant: { participants: { player: { id: any, gamerTag: any, user?: { slug: string } } }[]; id: any; initialSeedNum: number }; placement: any }) => {
           if (!standing || !standing.entrant) {
             console.log("Invalid standing entry found")
             return
@@ -97,6 +97,7 @@ export function processberkeleyData(data: { tournaments: any }, playerName?: str
 
           const playerId = standing.entrant.participants?.[0]?.player?.id || standing.entrant.id
           const playerName = standing.entrant.participants?.[0]?.player?.gamerTag 
+          const userSlug = standing.entrant.participants?.[0]?.player?.user?.slug?.replace("user/", "")
           const placement = standing.placement
           const seed = standing.entrant.initialSeedNum || 0
           const numEntrants = event.numEntrants || 1
@@ -114,6 +115,7 @@ export function processberkeleyData(data: { tournaments: any }, playerName?: str
             playerResults.set(playerId, {
               id: playerId,
               name: playerName,
+              userSlug: userSlug,
               placements: [],
               seeds: [],
               tournaments: 0,
@@ -350,6 +352,7 @@ export function processberkeleyData(data: { tournaments: any }, playerName?: str
     })
     .map((p) => ({
       ...p,
+      userSlug: p.userSlug,
       avgPlacement: p.avgPlacement,
       bestPlacement: p.bestPlacement,
       tournaments: p.tournaments,
@@ -375,6 +378,7 @@ export function processberkeleyData(data: { tournaments: any }, playerName?: str
     })
     .map((p) => ({
       ...p,
+      userSlug: p.userSlug,
       avgUpsetFactor: `${p.avgUpsetFactor.toFixed(1)}`,
       bestOutperform: `${p.bestOutperform}`,
       tournaments: p.tournaments,
@@ -393,6 +397,7 @@ export function processberkeleyData(data: { tournaments: any }, playerName?: str
     })
     .map((p) => ({
       ...p,
+      userSlug: p.userSlug,
       consistency: `${p.consistency}%`,
       tournaments: p.tournaments,
       upsetFactorVariance: p.upsetFactorVariance.toFixed(2),
@@ -409,6 +414,7 @@ export function processberkeleyData(data: { tournaments: any }, playerName?: str
           tournaments.length > 5 && p.performanceScore !== undefined
             ? p.performanceScore
             : undefined, 
+        userSlug: p.userSlug,
         averageNormalizedPlacement:
           tournaments.length <= 5 && p.averageNormalizedPlacement !== undefined
             ? p.averageNormalizedPlacement
@@ -529,6 +535,7 @@ export function processberkeleyData(data: { tournaments: any }, playerName?: str
       .map((p) => ({
         id: p.id,
         name: p.name,
+        userSlug: p.userSlug,
         tournaments: p.tournaments,
         avgPlacement: p.avgPlacement,
         bestPlacement: p.bestPlacement,
