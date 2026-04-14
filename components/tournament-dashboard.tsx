@@ -61,7 +61,7 @@ export function TournamentDashboard() {
   const [seriesInputs, setSeriesInputs] = useState([
     { tournamentSeriesName: "", primaryContact: "", city: "", countryCode: "" },
   ]);
-  const [isExporting, setIsExporting] = useState(false);
+
   const [playerSuggestions, setPlayerSuggestions] = useState<string[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [cancelRequested, setCancelRequested] = useState(false);
@@ -77,14 +77,14 @@ export function TournamentDashboard() {
   // Add functions for full list view
   const showFullList = (type: "topPerformers" | "risingStars" | "seedOutperformers" | "consistentPlayers") => {
     if (!tournamentData) return;
-    
+
     const titles = {
       topPerformers: "Top Performers - Full List",
       risingStars: "Rising Stars - Full List",
       seedOutperformers: "Seed Outperformers - Full List",
       consistentPlayers: "Most Consistent - Full List"
     };
-    
+
     setFullListData({
       type,
       title: titles[type],
@@ -148,7 +148,7 @@ export function TournamentDashboard() {
 
   useEffect(() => {
     let timer: NodeJS.Timeout;
-    
+
     if (queryCooldown && cooldownRemaining > 0) {
       timer = setTimeout(() => {
         setCooldownRemaining(prev => {
@@ -160,7 +160,7 @@ export function TournamentDashboard() {
         });
       }, 1000);
     }
-    
+
     return () => {
       if (timer) clearTimeout(timer);
     };
@@ -173,7 +173,7 @@ export function TournamentDashboard() {
 
   const fetchData = async () => {
     if (queryCooldown) return; // Prevent query if in cooldown
-    
+
     if (!dateRange.start || !dateRange.end || seriesInputs.every(s => !s.tournamentSeriesName.trim() && !s.primaryContact.trim())) {
       setError("Please select a date range and enter at least one tournament series name or primary contact");
       return;
@@ -216,12 +216,12 @@ export function TournamentDashboard() {
       if (
         data.noData ||
         (data.topPerformers?.length === 0 &&
-        data.seedOutperformers?.length === 0 &&
-        data.consistentPlayers?.length === 0)
+          data.seedOutperformers?.length === 0 &&
+          data.consistentPlayers?.length === 0)
       ) {
         setNoData(true);
       } else {
-        setTournamentData(data); 
+        setTournamentData(data);
       }
 
       if (
@@ -256,8 +256,8 @@ export function TournamentDashboard() {
       if (err.name === "AbortError" || err.message === "Update cancelled by user") {
         setError("Update cancelled.");
       } else if (
-        err.message.includes("429") || 
-        err.message.includes("rate limit") || 
+        err.message.includes("429") ||
+        err.message.includes("rate limit") ||
         err.message.includes("Too Many Requests")
       ) {
         setError("The service is experiencing high traffic. Please try again in a few minutes.");
@@ -267,7 +267,7 @@ export function TournamentDashboard() {
       }
     } finally {
       setIsLoading(false);
-      
+
       // Set cooldown after query completes
       setQueryCooldown(true);
       setCooldownRemaining(COOLDOWN_SECONDS);
@@ -277,68 +277,11 @@ export function TournamentDashboard() {
   const filterByPlayerName = (arr: any[]) =>
     activePlayerName.trim()
       ? arr?.filter((p) =>
-          p.name?.toLowerCase().includes(activePlayerName.trim().toLowerCase())
-        )
+        p.name?.toLowerCase().includes(activePlayerName.trim().toLowerCase())
+      )
       : arr;
 
-  // Ref for the dashboard content
-  const dashboardRef = useRef<HTMLDivElement>(null);
-  const [showDownload, setShowDownload] = useState(false);
 
-  // Show download button after dashboard is generated
-  useEffect(() => {
-    if (tournamentData && !isLoading && !noData && !error) {
-      setShowDownload(true);
-    } else {
-      setShowDownload(false);
-    }
-  }, [tournamentData, isLoading, noData, error]);
-
-  // Download handler
-  const handleDownloadJPG = async () => {
-    const html2canvas = (await import("html2canvas")).default;
-    
-    // Set to export mode
-    setIsExporting(true);
-    
-    // Wait for DOM update
-    await new Promise(r => setTimeout(r, 200));
-    
-    if (!dashboardRef.current) return;
-    
-    // Save original styles
-    const originalStyle = dashboardRef.current.getAttribute('style') || '';
-    
-    // Force specific dimensions for export
-    dashboardRef.current.style.width = '1024px';
-    dashboardRef.current.style.height = '768px';
-    dashboardRef.current.style.overflow = 'hidden';
-    dashboardRef.current.style.position = 'absolute';
-    dashboardRef.current.style.left = '-9999px';
-    dashboardRef.current.style.background = "#000";
-    
-    // Create canvas with fixed dimensions
-    const canvas = await html2canvas(dashboardRef.current, {
-      backgroundColor: "#000",
-      useCORS: true,
-      width: 1024,
-      height: 768,
-      logging: false,
-      allowTaint: true,
-    } as any);
-    
-    // Restore original styling
-    dashboardRef.current.setAttribute('style', originalStyle);
-    
-    // Exit export mode
-    setIsExporting(false);
-    
-    // Create and trigger download
-    const link = document.createElement("a");
-    link.download = `${activePlayerName ? `${activePlayerName}-` : ''}tournament-dashboard.jpg`;
-    link.href = canvas.toDataURL("image/jpeg", 0.95);
-    link.click();
-  };
 
   // Popular cities for autocomplete
   const POPULAR_CITIES = [
@@ -392,7 +335,7 @@ export function TournamentDashboard() {
   // Filter cities based on input
   const filterCities = (input: string): string[] => {
     if (!input.trim()) return [];
-    return POPULAR_CITIES.filter(city => 
+    return POPULAR_CITIES.filter(city =>
       city.toLowerCase().includes(input.toLowerCase())
     ).slice(0, 8);
   };
@@ -400,7 +343,7 @@ export function TournamentDashboard() {
   // Filter countries based on input (by name or code)
   const filterCountries = (input: string): { code: string; name: string }[] => {
     if (!input.trim()) return [];
-    return COUNTRIES.filter(country => 
+    return COUNTRIES.filter(country =>
       country.name.toLowerCase().includes(input.toLowerCase()) ||
       country.code.toLowerCase().includes(input.toLowerCase())
     ).slice(0, 8);
@@ -426,21 +369,19 @@ export function TournamentDashboard() {
           <div className="flex bg-gray-200 dark:bg-zinc-800 rounded-lg p-1">
             <button
               onClick={() => setViewMode("dashboard")}
-              className={`px-4 py-2 rounded-md text-sm font-medium transition ${
-                viewMode === "dashboard"
-                  ? "bg-white dark:bg-zinc-700 text-black dark:text-white shadow"
-                  : "text-gray-600 dark:text-gray-400 hover:text-black dark:hover:text-white"
-              }`}
+              className={`px-4 py-2 rounded-md text-sm font-medium transition ${viewMode === "dashboard"
+                ? "bg-white dark:bg-zinc-700 text-black dark:text-white shadow"
+                : "text-gray-600 dark:text-gray-400 hover:text-black dark:hover:text-white"
+                }`}
             >
               Dashboard
             </button>
             <button
               onClick={() => setViewMode("faq")}
-              className={`px-4 py-2 rounded-md text-sm font-medium transition ${
-                viewMode === "faq"
-                  ? "bg-white dark:bg-zinc-700 text-black dark:text-white shadow"
-                  : "text-gray-600 dark:text-gray-400 hover:text-black dark:hover:text-white"
-              }`}
+              className={`px-4 py-2 rounded-md text-sm font-medium transition ${viewMode === "faq"
+                ? "bg-white dark:bg-zinc-700 text-black dark:text-white shadow"
+                : "text-gray-600 dark:text-gray-400 hover:text-black dark:hover:text-white"
+                }`}
             >
               FAQ
             </button>
@@ -457,11 +398,11 @@ export function TournamentDashboard() {
             rel="noopener noreferrer"
             className="px-4 py-2 rounded bg-green-600 text-white font-medium text-sm shadow hover:bg-green-700 transition flex items-center"
           >
-            <svg 
-              xmlns="http://www.w3.org/2000/svg" 
-              className="h-4 w-4 mr-2" 
-              fill="none" 
-              viewBox="0 0 24 24" 
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              className="h-4 w-4 mr-2"
+              fill="none"
+              viewBox="0 0 24 24"
               stroke="currentColor"
             >
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" />
@@ -487,12 +428,12 @@ export function TournamentDashboard() {
                       {/* Series Name - Full width on mobile */}
                       <input
                         type="text"
-                        placeholder={`Series Name #${idx + 1}`}
+                        placeholder={`Series Name #${idx + 1} (Ex. Guildhouse)`}
                         value={input.tournamentSeriesName}
                         onChange={e => handleSeriesInputChange(idx, "tournamentSeriesName", e.target.value)}
                         className="w-full border rounded px-3 py-2 text-sm"
                       />
-                      
+
                       {/* Primary Contact with info icon - Full width on mobile */}
                       <div className="relative">
                         <input
@@ -509,14 +450,14 @@ export function TournamentDashboard() {
                           </div>
                         </div>
                       </div>
-                      
+
                       {/* City and Country Code - Side by side on mobile */}
                       <div className="flex gap-2">
                         {/* City with autocomplete */}
                         <div className="relative flex-1">
                           <input
                             type="text"
-                            placeholder={`Optional: City #${idx + 1}`}
+                            placeholder={`Optional: City #${idx + 1} (Ex. San Jose)`}
                             value={input.city || ""}
                             onChange={e => {
                               const value = e.target.value;
@@ -592,7 +533,7 @@ export function TournamentDashboard() {
                           )}
                         </div>
                       </div>
-                      
+
                       {/* Remove button - Full width on mobile if multiple series */}
                       {seriesInputs.length > 1 && (
                         <button
@@ -610,12 +551,12 @@ export function TournamentDashboard() {
                       {/* Series Name - Takes more space on desktop */}
                       <input
                         type="text"
-                        placeholder={`Series Name #${idx + 1}`}
+                        placeholder={`Series Name #${idx + 1} (Ex. Guildhouse)`}
                         value={input.tournamentSeriesName}
                         onChange={e => handleSeriesInputChange(idx, "tournamentSeriesName", e.target.value)}
                         className="flex-1 min-w-32 border rounded px-3 py-2 text-sm"
                       />
-                      
+
                       {/* Primary Contact with info icon - Reduced width */}
                       <div className="relative flex-1 min-w-32">
                         <input
@@ -632,12 +573,12 @@ export function TournamentDashboard() {
                           </div>
                         </div>
                       </div>
-                      
+
                       {/* City - Wider on desktop */}
                       <div className="relative flex-1 min-w-32">
                         <input
                           type="text"
-                          placeholder={`Optional: City #${idx + 1}`}
+                          placeholder={`Optional: City #${idx + 1} (Ex. San Jose)`}
                           value={input.city || ""}
                           onChange={e => {
                             const value = e.target.value;
@@ -672,12 +613,12 @@ export function TournamentDashboard() {
                           </ul>
                         )}
                       </div>
-                      
+
                       {/* Country Code - Wider on desktop */}
                       <div className="relative flex-1 min-w-24">
                         <input
                           type="text"
-                          placeholder={`Optional: Country Code #${idx + 1}`}
+                          placeholder={`Optional: Country Code #${idx + 1} (Ex. US)`}
                           value={input.countryCode || ""}
                           onChange={e => {
                             const value = e.target.value;
@@ -713,7 +654,7 @@ export function TournamentDashboard() {
                           </ul>
                         )}
                       </div>
-                      
+
                       {/* Remove button - Compact on desktop */}
                       {seriesInputs.length > 1 && (
                         <button
@@ -913,7 +854,7 @@ export function TournamentDashboard() {
               </div>
             </div>
 
-            {/* Centered Update Data & Download JPG Buttons */}
+            {/* Update Data Button */}
             <div className="flex flex-col sm:flex-row gap-2 justify-center items-center my-3 md:my-4">
               <Button
                 onClick={fetchData}
@@ -945,14 +886,7 @@ export function TournamentDashboard() {
                   Cancel Update
                 </button>
               )}
-              {showDownload && (
-                <button
-                  onClick={handleDownloadJPG}
-                  className="px-4 py-2 rounded bg-blue-600 text-white font-semibold shadow hover:bg-blue-700 transition w-full sm:w-auto text-sm"
-                >
-                  Download Dashboard as JPG
-                </button>
-              )}
+
             </div>
           </div>
 
@@ -971,19 +905,19 @@ export function TournamentDashboard() {
               <AlertTitle>Error</AlertTitle>
               <AlertDescription>
                 {error}
-                {(error.toLowerCase().includes("rate limit") || 
-                  error.toLowerCase().includes("high traffic") || 
+                {(error.toLowerCase().includes("rate limit") ||
+                  error.toLowerCase().includes("high traffic") ||
                   error.toLowerCase().includes("429")) && (
-                  <div className="mt-2 text-xs text-muted-foreground">
-                    <p className="font-medium mb-1">Suggestions:</p>
-                    <ul className="list-disc pl-5 space-y-1">
-                      <li>Wait a few minutes before trying again</li>
-                      <li>Try narrowing your date range (select fewer months)</li>
-                      <li>Reduce the number of tournament series</li>
-                      <li>Try during non-peak hours sorry :(</li>
-                    </ul>
-                  </div>
-                )}
+                    <div className="mt-2 text-xs text-muted-foreground">
+                      <p className="font-medium mb-1">Suggestions:</p>
+                      <ul className="list-disc pl-5 space-y-1">
+                        <li>Wait a few minutes before trying again</li>
+                        <li>Try narrowing your date range (select fewer months)</li>
+                        <li>Reduce the number of tournament series</li>
+                        <li>Try during non-peak hours sorry :(</li>
+                      </ul>
+                    </div>
+                  )}
               </AlertDescription>
             </Alert>
           )}
@@ -1021,259 +955,105 @@ export function TournamentDashboard() {
           )}
 
           {/* Dashboard Content */}
-          <div ref={dashboardRef} className="mt-2">
-            {isExporting ? (
-              // --- EXPORT LAYOUT (for JPG only) ---
-              <div
-                className="p-8 flex flex-col items-center justify-center gap-8"
-                style={{ 
-                  width: "1024px", 
-                  height: "768px", 
-                  margin: "0 auto",
-                  boxSizing: "border-box",
-                  background: "radial-gradient(circle at center, #1a1a1a 0%, #000000 100%)",
-                  overflow: "hidden"
-                }}
-              >
-                {/* Export Title - Show for both player-specific and general dashboards */}
-                 <div className="mb-2 w-full">
-                  {/* Attribution text above title */}
-                  <div className="text-gray-400 text-[10px] tracking-widest uppercase text-center mb-2 font-medium">
-                    Smash Ultimate Tournament Dashboard • @Murthrox
-                  </div>
-                  
-                  <div
-                    className="w-full rounded-xl border-2 border-gray-700 overflow-hidden shadow-2xl"
-                    style={{ background: "#111827" }}
-                  >
-                    <div
-                      className="flex items-center justify-center px-6"
-                      style={{ minHeight: "60px", background: "#111827" }}
-                    >
-                      <h1 className="text-3xl font-extrabold text-white text-center">
-                        {activePlayerName && activePlayerName.trim() ? (
-                          <>
-                            {activePlayerName}'s{" "}
-                            {seriesInputs
-                              .filter(input => input.tournamentSeriesName?.trim())
-                              .map((input) =>
-                                input.tournamentSeriesName
-                                  .split(" ")
-                                  .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-                                  .join(" ")
-                              )
-                              .join(", ")}{" "}
-                            Stats
-                          </>
-                        ) : (
-                          <>
-                            {seriesInputs
-                              .filter(input => input.tournamentSeriesName?.trim())
-                              .map((input) =>
-                                input.tournamentSeriesName
-                                  .split(" ")
-                                  .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-                                  .join(" ")
-                              )
-                              .join(", ") || "Tournament"}{" "}
-                            Stats
-                          </>
-                        )}
-                      </h1>
-                    </div>
-                  </div>
-                  
-                  {/* Date Timeline - Added Below Title */}
-                  <div className="text-gray-400 text-sm mb-4 text-center w-full mt-1">
-                    {new Date(dateRange.start).toLocaleDateString('en-US', {
-                      month: 'short',
-                      day: 'numeric',
-                      year: 'numeric'
-                    })}{" "}
-                    to{" "}
-                    {new Date(dateRange.end).toLocaleDateString('en-US', {
-                      month: 'short',
-                      day: 'numeric',
-                      year: 'numeric'
-                    })}
-                  </div>
-                </div>
-                
-                {/* Stats Cards */}
-                <div className="w-full max-w-[900px]">
-                  <StatsCards
-                    stats={tournamentData?.summary} 
-                    playerName={activePlayerName}
-                    isExporting={true}
-                  />
-                </div>
-                
-                {/* Tables: Adjust layout based on whether filtering by player */}
-                {activePlayerName && activePlayerName.trim() ? (
-                  // PLAYER SPECIFIC - Single column stacked layout
-                  <div className="flex flex-col gap-4 w-full max-w-[800px] mx-auto">
-                    {/* Top Performers */}
-                    <div>
-                      <MiniTopPerformersTable
-                        players={tournamentData?.topPerformers || []}
-                        filterName={activePlayerName}
-                      />
-                    </div>
-                    {/* Rising Stars */}
-                    <div>
-                      <MiniRisingStarsTable
-                        players={tournamentData?.risingStars || []}
-                        filterName={activePlayerName}
-                      />
-                    </div>
-                    {/* Seed Outperformers */}
-                    <div>
-                      <MiniSeedPerformanceTable
-                        players={tournamentData?.seedOutperformers || []}
-                        filterName={activePlayerName}
-                      />
-                    </div>
-                    {/* Most Consistent */}
-                    <div>
-                      <MiniConsistencyTable
-                        players={tournamentData?.consistentPlayers || []}
-                        filterName={activePlayerName}
-                      />
-                    </div>
-                  </div>
-                ) : (
-                  // GENERAL STATS - 2x2 grid layout
-                  <div className="grid grid-cols-2 gap-4 w-full max-w-[900px] mx-auto items-stretch">
-                    {/* Top Performers */}
-                    <div className="flex flex-col">
-                      <MiniTopPerformersTable
-                        players={tournamentData?.topPerformers || []}
-                        filterName={activePlayerName}
-                      />
-                    </div>
-                    {/* Rising Stars */}
-                    <div className="flex flex-col">
-                      <MiniRisingStarsTable
-                        players={tournamentData?.risingStars || []}
-                        filterName={activePlayerName}
-                      />
-                    </div>
-                    {/* Seed Outperformers */}
-                    <div className="flex flex-col">
-                      <MiniSeedPerformanceTable
-                        players={tournamentData?.seedOutperformers || []}
-                        filterName={activePlayerName}
-                      />
-                    </div>
-                    {/* Most Consistent */}
-                    <div className="flex flex-col">
-                      <MiniConsistencyTable
-                        players={tournamentData?.consistentPlayers || []}
-                        filterName={activePlayerName}
-                      />
-                    </div>
-                  </div>
-                )}
-              </div>
-            ) : (
-              // --- NORMAL DASHBOARD LAYOUT ---
-              <>
-                {!isLoading && tournamentData && !noData && (
-                  <>
-                    <div className="space-y-4 md:space-y-8 rounded-lg shadow-lg p-3 md:p-6 mt-0">
-                      {/* Stats Cards */}
-                      <div className="mt-0">
-                        {activePlayerName && activePlayerName.trim() ? (
-                          // Full-width player stats
-                          <div className="mb-4 w-full">
-                            <h2 className="text-xl font-bold mb-3">{activePlayerName}'s Stats</h2>
-                            <StatsCards stats={tournamentData.summary} playerName={activePlayerName} isExporting={false} />
-                          </div>
-                        ) : (
-                          // Normal stats display
+          <div className="mt-2">
+            {/* Normal Dashboard Layout */}
+            <>
+              {!isLoading && tournamentData && !noData && (
+                <>
+                  <div className="space-y-4 md:space-y-8 rounded-lg shadow-lg p-3 md:p-6 mt-0">
+                    {/* Stats Cards */}
+                    <div className="mt-0">
+                      {activePlayerName && activePlayerName.trim() ? (
+                        // Full-width player stats
+                        <div className="mb-4 w-full">
+                          <h2 className="text-xl font-bold mb-3">{activePlayerName}'s Stats</h2>
                           <StatsCards stats={tournamentData.summary} playerName={activePlayerName} isExporting={false} />
-                        )}
-                      </div>
-                      {/* Top Performers & Rising Stars */}
-                      <div className="grid grid-cols-1 gap-4 md:gap-6">
-                        <div className="bg-gradient-to-br from-yellow-200 via-pink-100 to-pink-300 rounded-lg p-3 shadow">
-                          <TopPerformersTable 
-                            players={tournamentData.topPerformers} 
-                            filterName={activePlayerName}
-                            onViewFullList={() => showFullList("topPerformers")}
-                          />
                         </div>
-                        <div className="bg-gradient-to-br from-blue-200 via-green-100 to-green-300 rounded-lg p-3 shadow">
-                          <RisingStarsTable 
-                            players={tournamentData.risingStars} 
-                            filterName={activePlayerName}
-                            onViewFullList={() => showFullList("risingStars")}
-                          />
-                        </div>
-                        <div className="bg-gradient-to-br from-purple-200 via-indigo-100 to-indigo-300 rounded-lg p-3 shadow">
-                          <SeedPerformanceTable 
-                            players={tournamentData.seedOutperformers} 
-                            filterName={activePlayerName}
-                            onViewFullList={() => showFullList("seedOutperformers")}
-                          />
-                        </div>
-                        <div className="bg-gradient-to-br from-orange-200 via-yellow-100 to-yellow-300 rounded-lg p-3 shadow">
-                          <ConsistencyTable 
-                            players={tournamentData.consistentPlayers} 
-                            filterName={activePlayerName}
-                            onViewFullList={() => showFullList("consistentPlayers")}
-                          />
-                        </div>
-                        <div className="bg-gradient-to-br from-teal-200 via-cyan-100 to-cyan-300 rounded-lg p-3 shadow">
-                          <MostAttendedTable 
-                            players={tournamentData.mostAttended || []} 
-                            filterName={activePlayerName}
-                          />
-                        </div>
-                      </div>
-                      
-                      {/* Tournament Names */}
-                      {tournamentData?.tournamentNames && tournamentData?.tournamentNames.length > 0 && tournamentData?.tournamentSlugs && (
-                        <div className="mt-6 w-full">
-                          <h2 className="text-base md:text-lg font-semibold mb-2 md:mb-4 text-blue-700">
-                            Queried Tournaments
-                          </h2>
-                          <ul className="list-disc pl-4 space-y-1 text-xs md:text-sm">
-                            {tournamentData.tournamentNames.map((name, index) => (
-                              <li key={index} className="text-muted-foreground">
-                                {tournamentData.tournamentSlugs && tournamentData.tournamentSlugs[index] ? (
-                                  <a
-                                    href={`https://www.start.gg/${tournamentData.tournamentSlugs[index]}`}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="text-blue-600 hover:underline"
-                                  >
-                                    {name}
-                                  </a>
-                                ) : (
-                                  name
-                                )}
-                              </li>
-                            ))}
-                          </ul>
-                        </div>
+                      ) : (
+                        // Normal stats display
+                        <StatsCards stats={tournamentData.summary} playerName={activePlayerName} isExporting={false} />
                       )}
                     </div>
-                  </>
-                )}
+                    {/* Top Performers & Rising Stars */}
+                    <div className="grid grid-cols-1 gap-4 md:gap-6">
+                      <div className="bg-gradient-to-br from-yellow-200 via-pink-100 to-pink-300 rounded-lg p-3 shadow">
+                        <TopPerformersTable
+                          players={tournamentData.topPerformers}
+                          filterName={activePlayerName}
+                          onViewFullList={() => showFullList("topPerformers")}
+                        />
+                      </div>
+                      <div className="bg-gradient-to-br from-blue-200 via-green-100 to-green-300 rounded-lg p-3 shadow">
+                        <RisingStarsTable
+                          players={tournamentData.risingStars}
+                          filterName={activePlayerName}
+                          onViewFullList={() => showFullList("risingStars")}
+                        />
+                      </div>
+                      <div className="bg-gradient-to-br from-purple-200 via-indigo-100 to-indigo-300 rounded-lg p-3 shadow">
+                        <SeedPerformanceTable
+                          players={tournamentData.seedOutperformers}
+                          filterName={activePlayerName}
+                          onViewFullList={() => showFullList("seedOutperformers")}
+                        />
+                      </div>
+                      <div className="bg-gradient-to-br from-orange-200 via-yellow-100 to-yellow-300 rounded-lg p-3 shadow">
+                        <ConsistencyTable
+                          players={tournamentData.consistentPlayers}
+                          filterName={activePlayerName}
+                          onViewFullList={() => showFullList("consistentPlayers")}
+                        />
+                      </div>
+                      <div className="bg-gradient-to-br from-teal-200 via-cyan-100 to-cyan-300 rounded-lg p-3 shadow">
+                        <MostAttendedTable
+                          players={tournamentData.mostAttended || []}
+                          filterName={activePlayerName}
+                        />
+                      </div>
+                    </div>
 
-                {/* Default Message */}
-                {!isLoading && !error && !noData && !tournamentData && (
-                  <div className="flex flex-col justify-center items-center h-64 text-muted-foreground">
-                    <p className="mb-4">Enter a series name (ex. Guildhouse), add additional information to narrow down tournaments, add filters, and click "Update Data"</p>
-                    <p className="text-sm max-w-md text-center">
-                      This will retrieve competitor data from all tournaments in that series during the specified time period.
-                    </p>
+                    {/* Tournament Names */}
+                    {tournamentData?.tournamentNames && tournamentData?.tournamentNames.length > 0 && tournamentData?.tournamentSlugs && (
+                      <div className="mt-6 w-full">
+                        <h2 className="text-base md:text-lg font-semibold mb-2 md:mb-4 text-blue-700">
+                          Queried Tournaments
+                        </h2>
+                        <ul className="list-disc pl-4 space-y-1 text-xs md:text-sm">
+                          {tournamentData.tournamentNames.map((name, index) => (
+                            <li key={index} className="text-muted-foreground">
+                              {tournamentData.tournamentSlugs && tournamentData.tournamentSlugs[index] ? (
+                                <a
+                                  href={`https://www.start.gg/${tournamentData.tournamentSlugs[index]}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-blue-600 hover:underline"
+                                >
+                                  {name}
+                                </a>
+                              ) : (
+                                name
+                              )}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
                   </div>
-                )}
-              </>
-            )}
+                </>
+              )}
+
+              {/* Default Message */}
+              {!isLoading && !error && !noData && !tournamentData && (
+                <div className="flex flex-col justify-center items-center h-64 text-muted-foreground">
+                  <p className="mb-4">Enter a series name (ex. Guildhouse), add additional information to narrow down tournaments, add filters, and click "Update Data"</p>
+                  <p className="text-sm max-w-md text-center">
+                    This will retrieve competitor data from all tournaments in that series during the specified time period.
+                  </p>
+                </div>
+              )}
+            </>
           </div>
+
 
           {/* Footer with Methodology Button - only show on dashboard tab */}
           {viewMode === "dashboard" && (
@@ -1295,7 +1075,7 @@ export function TournamentDashboard() {
         <div className="max-w-4xl mx-auto">
           <div className="bg-gray-50 dark:bg-zinc-900 rounded-lg p-6">
             <h2 className="text-2xl font-bold mb-6 text-center">Frequently Asked Questions</h2>
-            
+
             <div className="space-y-6">
               {/* FAQ Item 1 */}
               <div className="bg-white dark:bg-zinc-800 rounded-lg p-4 shadow">
@@ -1303,8 +1083,8 @@ export function TournamentDashboard() {
                   Q: How do I use the dashboard?
                 </h3>
                 <p className="text-gray-700 dark:text-gray-300 text-sm">
-                  A: Enter a tournament series name (like "Berkeley" or "Guildhouse"), and hit Update Data. 
-                  You can also add a primary contact (usually found in the tournament header on start.gg) to include 
+                  A: Enter a tournament series name (like "Berkeley" or "Guildhouse"), and hit Update Data.
+                  You can also add a primary contact (usually found in the tournament header on start.gg) to include
                   tournaments that might not have the series name in the title.
                 </p>
               </div>
@@ -1315,7 +1095,7 @@ export function TournamentDashboard() {
                   Q: What is the attendance threshold?
                 </h3>
                 <p className="text-gray-700 dark:text-gray-300 text-sm">
-                  A: This determines the minimum percentage of tournaments a player must attend to be included in the stats. 
+                  A: This determines the minimum percentage of tournaments a player must attend to be included in the stats.
                   Default is 25%. If you're getting "No data found", try lowering this to 0% or 5%.
                 </p>
               </div>
@@ -1336,7 +1116,7 @@ export function TournamentDashboard() {
                   Q: Help! There are other tournaments by the same name as mine!
                 </h3>
                 <p className="text-gray-700 dark:text-gray-300 text-sm">
-                  A: You can add the city and/or the country code for your tournament series to help filter out unrelated tournaments. 
+                  A: You can add the city and/or the country code for your tournament series to help filter out unrelated tournaments.
                 </p>
               </div>
 
@@ -1346,21 +1126,12 @@ export function TournamentDashboard() {
                   Q: Why am I getting rate limit errors?
                 </h3>
                 <p className="text-gray-700 dark:text-gray-300 text-sm">
-                  A: The service may be experiencing high traffic. Try narrowing your date range, 
+                  A: The service may be experiencing high traffic. Try narrowing your date range,
                   reducing the number of tournament series, or waiting a few minutes before trying again.
                 </p>
               </div>
 
-              {/* FAQ Item 6 */}
-              <div className="bg-white dark:bg-zinc-800 rounded-lg p-4 shadow">
-                <h3 className="text-lg font-semibold mb-2 text-blue-600 dark:text-blue-400">
-                  Q: Can I download the results?
-                </h3>
-                <p className="text-gray-700 dark:text-gray-300 text-sm">
-                  A: Yes! Once you generate a dashboard, a "Download Dashboard as JPG" button will appear. 
-                  This creates a formatted image perfect for sharing on X/Twitter, or other social media. 
-                </p>
-              </div>
+
 
               {/* FAQ Item 7 */}
               <div className="bg-white dark:bg-zinc-800 rounded-lg p-4 shadow">
@@ -1368,7 +1139,7 @@ export function TournamentDashboard() {
                   Q: How do I find the primary contact for a tournament series?
                 </h3>
                 <p className="text-gray-700 dark:text-gray-300 text-sm">
-                  A: Go to any tournament in the series on start.gg and look at the header section. 
+                  A: Go to any tournament in the series on start.gg and look at the header section.
                   The primary contact is usually listed as a Discord link, email, or social media handle.
                 </p>
               </div>
@@ -1385,11 +1156,11 @@ export function TournamentDashboard() {
                 rel="noopener noreferrer"
                 className="inline-flex items-center px-4 py-2 rounded bg-blue-600 text-white font-medium text-sm shadow hover:bg-blue-700 transition"
               >
-                <svg 
-                  xmlns="http://www.w3.org/2000/svg" 
-                  className="h-4 w-4 mr-2" 
-                  fill="none" 
-                  viewBox="0 0 24 24" 
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  className="h-4 w-4 mr-2"
+                  fill="none"
+                  viewBox="0 0 24 24"
                   stroke="currentColor"
                 >
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" />
@@ -1401,7 +1172,7 @@ export function TournamentDashboard() {
         </div>
       ) : viewMode === "fullList" ? (
         // FULL LIST VIEW
-        <FullListView 
+        <FullListView
           data={fullListData}
           onGoBack={goBackToDashboard}
           filterName={activePlayerName}

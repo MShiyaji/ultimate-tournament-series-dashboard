@@ -51,8 +51,8 @@ export function MiniRisingStarsTable({ players, filterName }: { players: any[], 
                   <td className="py-1 px-1 text-center">
                     {player.tournaments || player.events || player.numEvents || "N/A"}
                   </td>
-                  <td className="text-center py-1 px-1">
-                    {improvement.toFixed(2)}
+                  <td className={`text-center py-1 px-1 ${improvement > 0 ? "text-green-500 font-bold" : improvement < 0 ? "text-red-500 font-bold" : ""}`}>
+                    {improvement > 0 ? "+" : ""}{improvement.toFixed(1)}%
                   </td>
                 </tr>
               )

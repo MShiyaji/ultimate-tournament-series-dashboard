@@ -105,28 +105,28 @@ export function RisingStarsTable({ players, filterName, onViewFullList }) {
                       {isMobile && (
                         <div className="text-xs text-gray-500 mt-1 space-y-0.5">
                           <div className={improvementColor}>
-                            Improvement: {improvement.toFixed(3)}
+                            Improvement: {improvement > 0 ? "+" : ""}{improvement.toFixed(1)}%
                           </div>
                           <div className="text-gray-400">
-                            Avgs: {Number(player.earlyAvg).toFixed(2)} → {Number(player.lateAvg).toFixed(2)}
+                            Avgs: {Number(player.earlyAvg).toFixed(1)}% → {Number(player.lateAvg).toFixed(1)}%
                           </div>
                         </div>
                       )}
                     </TableCell>
                     {!isMobile && (
                       <TableCell className={`px-2 text-center ${improvementColor}`}>
-                        {improvement.toFixed(3)}
+                        {improvement > 0 ? "+" : ""}{improvement.toFixed(1)}%
                       </TableCell>
                     )}
                     {!isMobile && (
                       <TableCell className="px-2 text-center">
-                        {Number(player.earlyAvg).toFixed(3)}
+                        {Number(player.earlyAvg).toFixed(1)}%
                       </TableCell>
                     )}
                     {!isMobile && (
                       <TableCell className="px-2 text-center">
                         <Badge variant="outline">
-                          {Number(player.lateAvg).toFixed(3)}
+                          {Number(player.lateAvg).toFixed(1)}%
                         </Badge>
                       </TableCell>
                     )}

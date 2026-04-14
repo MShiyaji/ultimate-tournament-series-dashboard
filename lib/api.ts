@@ -25,11 +25,11 @@ export async function downloadCacheFromS3() {
   }
   const command = new GetObjectCommand({ Bucket: BUCKET_NAME, Key: CACHE_KEY });
   const response = await s3.send(command);
-  
+
   if (!response.Body) {
     throw new Error("No data received from S3");
   }
-  
+
   const text = await response.Body.transformToString();
   return JSON.parse(text);
 }
@@ -85,7 +85,7 @@ const basicTournamentQuery = `
 async function fetchTournamentsFromAPI(startDate: string, endDate: string) {
   const startTimestamp = Math.floor(new Date(startDate).getTime() / 1000);
   const endTimestamp = Math.floor(new Date(endDate).getTime() / 1000);
-  
+
   const apiKey = process.env.STARTGG_API_KEY;
   if (!apiKey) {
     throw new Error("STARTGG_API_KEY environment variable is required");
@@ -100,7 +100,7 @@ async function fetchTournamentsFromAPI(startDate: string, endDate: string) {
 
   do {
     console.log(`📄 Fetching page ${page}...`);
-    
+
     const response = await fetch(API_URL, {
       method: "POST",
       headers: {
@@ -121,7 +121,7 @@ async function fetchTournamentsFromAPI(startDate: string, endDate: string) {
     }
 
     const data = await response.json();
-    
+
     if (data.errors) {
       throw new Error(`StartGG API errors: ${JSON.stringify(data.errors)}`);
     }
@@ -131,7 +131,7 @@ async function fetchTournamentsFromAPI(startDate: string, endDate: string) {
       allTournaments.push(...tournaments.nodes);
       console.log(`✅ Page ${page}: Got ${tournaments.nodes.length} tournaments (${allTournaments.length} total)`);
     }
-    
+
     totalPages = Math.min(tournaments?.pageInfo?.totalPages || 1, maxPages);
     page++;
 
@@ -317,18 +317,18 @@ async function fetchTournamentsByName(tournamentNames: string[], startDate: stri
     }
 
     const data = await response.json();
-    
+
     if (data.errors) {
       throw new Error(`StartGG API errors: ${JSON.stringify(data.errors)}`);
     }
 
     const tournaments = data.data?.tournaments?.nodes || [];
-    
+
     // Filter to more precise matches client-side since StartGG does substring matching
     const filteredTournaments = tournaments.filter((tournament: any) => {
       const tournamentName = tournament.name?.toLowerCase() || "";
       const searchName = name.toLowerCase();
-      
+
       // Check if the tournament name starts with the search term or contains it as a complete word/phrase
       return (
         tournamentName.startsWith(searchName) ||
@@ -337,7 +337,7 @@ async function fetchTournamentsByName(tournamentNames: string[], startDate: stri
         tournamentName === searchName
       );
     });
-    
+
     allTournaments.push(...filteredTournaments);
     console.log(`✅ Found ${tournaments.length} tournaments, filtered to ${filteredTournaments.length} for "${name}"`);
 
@@ -357,14 +357,14 @@ export async function fetchberkeleyTournaments(
   seriesInputs: { tournamentSeriesName: string; primaryContact: string; strictMatch?: boolean; city?: string; countryCode?: string }[],
   playerName: string
 ) {
-  
+
   // Extract tournament names for name-based search
   const tournamentNames = seriesInputs
     .filter(input => input.tournamentSeriesName?.trim())
     .map(input => input.tournamentSeriesName.trim());
 
   let tournaments: any[] = [];
-  
+
   if (tournamentNames.length > 0) {
     // 1. Fetch tournaments by name with date range (preferred over broad search)
     console.log("🎯 Using tournament name search with date filtering");
@@ -441,12 +441,13 @@ export async function fetchberkeleyTournaments(
     ...tournament,
     events: (tournament.events || []).filter((event: any) => {
       const eventName = event.name?.toLowerCase() || "";
+
       return (
         eventName.includes("singles") ||
         eventName.includes("1v1") ||
         eventName.includes("bracket") ||
         // Include if it doesn't seem to be doubles/teams
-        (!eventName.includes("doubles") && !eventName.includes("teams") && !eventName.includes("2v2") && !eventName.includes("crew"))
+        (!eventName.includes("doubles") && !eventName.includes("teams") && !eventName.includes("2v2") && !eventName.includes("crew") && !eventName.includes("ladder") && !eventName.includes("redemption"))
       );
     }),
   })).filter(t => t.events.length > 0);
@@ -459,7 +460,7 @@ export async function fetchberkeleyTournaments(
   } else {
     const getNextKey = getApiKeyRotator(STARTGG_API_KEYS);
     console.log(`📊 Fetching standings for ${tournaments.reduce((acc, t) => acc + t.events.length, 0)} events...`);
-    
+
     // Process tournaments sequentially to avoid overwhelming the API
     for (const tournament of tournaments) {
       for (const event of tournament.events) {
@@ -470,7 +471,7 @@ export async function fetchberkeleyTournaments(
             getNextKey()
           );
           event.standings = data?.event?.standings || { nodes: [] };
-          
+
           // Small delay between requests to be respectful
           await delay(50);
         } catch (err) {
@@ -498,7 +499,7 @@ export async function fetchberkeleyTournaments(
           )
         )
     }))
-    .filter(t => t.events.length > 0);
+      .filter(t => t.events.length > 0);
   }
 
   return { tournaments: { nodes: tournaments } };
