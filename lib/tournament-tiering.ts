@@ -5,7 +5,7 @@ interface Entrant {
   tag: string
 }
 
-interface PlayerValue 
+interface PlayerValue {
   id: string
   tag: string
   points: number

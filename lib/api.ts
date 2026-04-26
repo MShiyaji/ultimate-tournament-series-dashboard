@@ -402,6 +402,15 @@ export async function fetchberkeleyTournaments(
     }
   }
 
+  // 1.5. Date filtering (critical for data loaded from S3 cache)
+  const startTimestamp = Math.floor(new Date(startDate).getTime() / 1000);
+  const endTimestamp = Math.floor(new Date(endDate).getTime() / 1000);
+
+  tournaments = tournaments.filter(tournament => {
+    if (!tournament.startAt) return true;
+    return tournament.startAt >= startTimestamp && tournament.startAt <= endTimestamp;
+  });
+
   // 2. Additional filtering by primary contact, city, countryCode, and name if needed
   if (seriesInputs && seriesInputs.length > 0) {
     tournaments = tournaments.filter(tournament => {
