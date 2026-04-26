@@ -363,9 +363,14 @@ export async function fetchberkeleyTournaments(
     .filter(input => input.tournamentSeriesName?.trim())
     .map(input => input.tournamentSeriesName.trim());
 
+  const hasAdditionalFilters = seriesInputs.some(
+    input => input.primaryContact?.trim() || input.city?.trim() || input.countryCode?.trim()
+  );
+
   let tournaments: any[] = [];
 
-  if (tournamentNames.length > 0) {
+  // Use Path A (name search) ONLY if we have names and NO additional filters
+  if (tournamentNames.length > 0 && !hasAdditionalFilters) {
     // 1. Fetch tournaments by name with date range (preferred over broad search)
     console.log("🎯 Using tournament name search with date filtering");
     try {
@@ -397,15 +402,24 @@ export async function fetchberkeleyTournaments(
     }
   }
 
-
-  // 2. Additional filtering by primary contact, city, countryCode if needed
-  // (Skip for name-based searches since they're already targeted)
-  if (tournamentNames.length === 0 && seriesInputs && seriesInputs.length > 0) {
+  // 2. Additional filtering by primary contact, city, countryCode, and name if needed
+  if (seriesInputs && seriesInputs.length > 0) {
     tournaments = tournaments.filter(tournament => {
       return seriesInputs.some(input => {
+        const tournamentSeriesName = input.tournamentSeriesName?.trim().toLowerCase();
         const primaryContact = input.primaryContact?.trim().toLowerCase();
         const city = input.city?.trim().toLowerCase();
         const countryCode = input.countryCode?.trim().toLowerCase();
+
+        // If this input has a series name, but the tournament doesn't match it, skip this input
+        if (tournamentSeriesName) {
+          const tName = tournament.name?.toLowerCase() || "";
+          const nameMatch = tName.startsWith(tournamentSeriesName) ||
+                            tName.includes(tournamentSeriesName + " ") ||
+                            tName.includes(" " + tournamentSeriesName) ||
+                            tName === tournamentSeriesName;
+          if (!nameMatch) return false;
+        }
 
         let contactMatch = true;
         let cityMatch = true;
