@@ -79,9 +79,9 @@ export function SeedPerformanceTable({ players, filterName, onViewFullList }) {
                     </TableCell>
                     <TableCell className={isMobile ? "px-1" : "px-2"}>
                       <div className="font-medium leading-tight">
-                        {player.userSlug ? (
+                        {player.id ? (
                           <a
-                            href={`https://www.start.gg/user/${player.userSlug}`}
+                            href={`https://www.supermajor.gg/ultimate/player/${encodeURIComponent(player.name)}?id=S${player.id}`}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="hover:underline text-blue-600 dark:text-blue-400"

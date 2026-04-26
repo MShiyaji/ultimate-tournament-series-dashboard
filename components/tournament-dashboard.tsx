@@ -67,7 +67,7 @@ export function TournamentDashboard() {
   const [cancelRequested, setCancelRequested] = useState(false);
 
   // Add new state for city and country autocomplete
-  const [citySuggestions, setCitySuggestions] = useState<string[]>([]);
+  const [citySuggestions, setCitySuggestions] = useState<{name: string, state: string}[]>([]);
   const [countrySuggestions, setCountrySuggestions] = useState<string[]>([]);
   const [showCitySuggestions, setShowCitySuggestions] = useState<{ [key: number]: boolean }>({});
   const [showCountrySuggestions, setShowCountrySuggestions] = useState<{ [key: number]: boolean }>({});
@@ -285,17 +285,17 @@ export function TournamentDashboard() {
 
   // Popular cities for autocomplete
   const POPULAR_CITIES = [
-    "New York", "Sunnyvale", "Los Angeles", "Chicago", "Houston", "Phoenix", "Philadelphia", "San Antonio", "San Diego", "Dallas", "San Jose",
-    "Austin", "Jacksonville", "Fort Worth", "Columbus", "Charlotte", "San Francisco", "Indianapolis", "Seattle", "Denver", "Washington",
-    "Boston", "El Paso", "Nashville", "Detroit", "Oklahoma City", "Portland", "Las Vegas", "Memphis", "Louisville", "Baltimore",
-    "Milwaukee", "Albuquerque", "Tucson", "Fresno", "Sacramento", "Mesa", "Kansas City", "Atlanta", "Long Beach", "Colorado Springs",
-    "Raleigh", "Miami", "Virginia Beach", "Omaha", "Oakland", "Minneapolis", "Tulsa", "Arlington", "Tampa", "New Orleans",
-    "London", "Manchester", "Birmingham", "Liverpool", "Leeds", "Sheffield", "Bristol", "Glasgow", "Leicester", "Edinburgh",
-    "Toronto", "Montreal", "Vancouver", "Calgary", "Ottawa", "Edmonton", "Mississauga", "Winnipeg", "Quebec City", "Hamilton",
-    "Sydney", "Melbourne", "Brisbane", "Perth", "Adelaide", "Gold Coast", "Newcastle", "Canberra", "Sunshine Coast", "Wollongong",
-    "Tokyo", "Osaka", "Kyoto", "Yokohama", "Kobe", "Nagoya", "Sapporo", "Fukuoka", "Hiroshima", "Sendai",
-    "Berlin", "Munich", "Frankfurt", "Hamburg", "Cologne", "Stuttgart", "Düsseldorf", "Dortmund", "Essen", "Leipzig",
-    "Paris", "Marseille", "Lyon", "Toulouse", "Nice", "Nantes", "Strasbourg", "Montpellier", "Bordeaux", "Lille"
+    { name: "New York", state: "NY" }, { name: "Sunnyvale", state: "CA" }, { name: "Los Angeles", state: "CA" }, { name: "Chicago", state: "IL" }, { name: "Houston", state: "TX" }, { name: "Phoenix", state: "AZ" }, { name: "Philadelphia", state: "PA" }, { name: "San Antonio", state: "TX" }, { name: "San Diego", state: "CA" }, { name: "Dallas", state: "TX" }, { name: "San Jose", state: "CA" },
+    { name: "Austin", state: "TX" }, { name: "Jacksonville", state: "FL" }, { name: "Fort Worth", state: "TX" }, { name: "Columbus", state: "OH" }, { name: "Charlotte", state: "NC" }, { name: "San Francisco", state: "CA" }, { name: "Indianapolis", state: "IN" }, { name: "Seattle", state: "WA" }, { name: "Denver", state: "CO" }, { name: "Washington", state: "DC" },
+    { name: "Boston", state: "MA" }, { name: "El Paso", state: "TX" }, { name: "Nashville", state: "TN" }, { name: "Detroit", state: "MI" }, { name: "Oklahoma City", state: "OK" }, { name: "Portland", state: "OR" }, { name: "Las Vegas", state: "NV" }, { name: "Memphis", state: "TN" }, { name: "Louisville", state: "KY" }, { name: "Baltimore", state: "MD" },
+    { name: "Milwaukee", state: "WI" }, { name: "Albuquerque", state: "NM" }, { name: "Tucson", state: "AZ" }, { name: "Fresno", state: "CA" }, { name: "Sacramento", state: "CA" }, { name: "Mesa", state: "AZ" }, { name: "Kansas City", state: "MO" }, { name: "Atlanta", state: "GA" }, { name: "Long Beach", state: "CA" }, { name: "Colorado Springs", state: "CO" },
+    { name: "Raleigh", state: "NC" }, { name: "Miami", state: "FL" }, { name: "Virginia Beach", state: "VA" }, { name: "Omaha", state: "NE" }, { name: "Oakland", state: "CA" }, { name: "Minneapolis", state: "MN" }, { name: "Tulsa", state: "OK" }, { name: "Arlington", state: "TX" }, { name: "Tampa", state: "FL" }, { name: "New Orleans", state: "LA" },
+    { name: "London", state: "UK" }, { name: "Manchester", state: "UK" }, { name: "Birmingham", state: "UK" }, { name: "Liverpool", state: "UK" }, { name: "Leeds", state: "UK" }, { name: "Sheffield", state: "UK" }, { name: "Bristol", state: "UK" }, { name: "Glasgow", state: "UK" }, { name: "Leicester", state: "UK" }, { name: "Edinburgh", state: "UK" },
+    { name: "Toronto", state: "ON" }, { name: "Montreal", state: "QC" }, { name: "Vancouver", state: "BC" }, { name: "Calgary", state: "AB" }, { name: "Ottawa", state: "ON" }, { name: "Edmonton", state: "AB" }, { name: "Mississauga", state: "ON" }, { name: "Winnipeg", state: "MB" }, { name: "Quebec City", state: "QC" }, { name: "Hamilton", state: "ON" },
+    { name: "Sydney", state: "NSW" }, { name: "Melbourne", state: "VIC" }, { name: "Brisbane", state: "QLD" }, { name: "Perth", state: "WA" }, { name: "Adelaide", state: "SA" }, { name: "Gold Coast", state: "QLD" }, { name: "Newcastle", state: "NSW" }, { name: "Canberra", state: "ACT" }, { name: "Sunshine Coast", state: "QLD" }, { name: "Wollongong", state: "NSW" },
+    { name: "Tokyo", state: "JP" }, { name: "Osaka", state: "JP" }, { name: "Kyoto", state: "JP" }, { name: "Yokohama", state: "JP" }, { name: "Kobe", state: "JP" }, { name: "Nagoya", state: "JP" }, { name: "Sapporo", state: "JP" }, { name: "Fukuoka", state: "JP" }, { name: "Hiroshima", state: "JP" }, { name: "Sendai", state: "JP" },
+    { name: "Berlin", state: "DE" }, { name: "Munich", state: "DE" }, { name: "Frankfurt", state: "DE" }, { name: "Hamburg", state: "DE" }, { name: "Cologne", state: "DE" }, { name: "Stuttgart", state: "DE" }, { name: "Düsseldorf", state: "DE" }, { name: "Dortmund", state: "DE" }, { name: "Essen", state: "DE" }, { name: "Leipzig", state: "DE" },
+    { name: "Paris", state: "FR" }, { name: "Marseille", state: "FR" }, { name: "Lyon", state: "FR" }, { name: "Toulouse", state: "FR" }, { name: "Nice", state: "FR" }, { name: "Nantes", state: "FR" }, { name: "Strasbourg", state: "FR" }, { name: "Montpellier", state: "FR" }, { name: "Bordeaux", state: "FR" }, { name: "Lille", state: "FR" }
   ];
 
   // Countries with their codes
@@ -333,10 +333,11 @@ export function TournamentDashboard() {
   ];
 
   // Filter cities based on input
-  const filterCities = (input: string): string[] => {
+  const filterCities = (input: string): { name: string; state: string }[] => {
     if (!input.trim()) return [];
     return POPULAR_CITIES.filter(city =>
-      city.toLowerCase().includes(input.toLowerCase())
+      city.name.toLowerCase().includes(input.toLowerCase()) ||
+      city.state.toLowerCase().includes(input.toLowerCase())
     ).slice(0, 8);
   };
 
@@ -482,11 +483,11 @@ export function TournamentDashboard() {
                                   key={sidx}
                                   className="px-3 py-2 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800"
                                   onMouseDown={() => {
-                                    handleSeriesInputChange(idx, "city", suggestion);
+                                    handleSeriesInputChange(idx, "city", suggestion.name);
                                     setShowCitySuggestions(prev => ({ ...prev, [idx]: false }));
                                   }}
                                 >
-                                  {suggestion}
+                                  {suggestion.name}, <span className="text-gray-500 dark:text-gray-400 text-xs">{suggestion.state}</span>
                                 </li>
                               ))}
                             </ul>
@@ -603,11 +604,11 @@ export function TournamentDashboard() {
                                 key={sidx}
                                 className="px-3 py-2 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800"
                                 onMouseDown={() => {
-                                  handleSeriesInputChange(idx, "city", suggestion);
+                                  handleSeriesInputChange(idx, "city", suggestion.name);
                                   setShowCitySuggestions(prev => ({ ...prev, [idx]: false }));
                                 }}
                               >
-                                {suggestion}
+                                {suggestion.name}, <span className="text-gray-500 dark:text-gray-400 text-xs">{suggestion.state}</span>
                               </li>
                             ))}
                           </ul>

@@ -87,9 +87,9 @@ export function FullListView({ data, onGoBack, filterName }: FullListViewProps) 
                     </TableCell>
                     <TableCell className={`font-medium truncate ${isMobile ? "px-2" : ""}`}>
                       <div className="truncate">
-                        {player.userSlug ? (
+                        {player.id ? (
                           <a
-                            href={`https://www.start.gg/user/${player.userSlug}`}
+                            href={`https://www.supermajor.gg/ultimate/player/${encodeURIComponent(player.name)}?id=S${player.id}`}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="hover:underline text-blue-600 dark:text-blue-400"
@@ -158,9 +158,9 @@ export function FullListView({ data, onGoBack, filterName }: FullListViewProps) 
                     </TableCell>
                     <TableCell className={`font-medium truncate ${isMobile ? "px-2" : ""}`}>
                       <div className="truncate">
-                        {player.userSlug ? (
+                        {player.id ? (
                           <a
-                            href={`https://www.start.gg/user/${player.userSlug}`}
+                            href={`https://www.supermajor.gg/ultimate/player/${encodeURIComponent(player.name)}?id=S${player.id}`}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="hover:underline text-blue-600 dark:text-blue-400"
@@ -244,9 +244,9 @@ export function FullListView({ data, onGoBack, filterName }: FullListViewProps) 
                     </TableCell>
                     <TableCell className={`font-medium truncate ${isMobile ? "px-2" : ""}`}>
                       <div className="truncate">
-                        {player.userSlug ? (
+                        {player.id ? (
                           <a
-                            href={`https://www.start.gg/user/${player.userSlug}`}
+                            href={`https://www.supermajor.gg/ultimate/player/${encodeURIComponent(player.name)}?id=S${player.id}`}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="hover:underline text-blue-600 dark:text-blue-400"
@@ -314,9 +314,9 @@ export function FullListView({ data, onGoBack, filterName }: FullListViewProps) 
                     </TableCell>
                     <TableCell className={`font-medium truncate ${isMobile ? "px-2" : ""}`}>
                       <div className="truncate">
-                        {player.userSlug ? (
+                        {player.id ? (
                           <a
-                            href={`https://www.start.gg/user/${player.userSlug}`}
+                            href={`https://www.supermajor.gg/ultimate/player/${encodeURIComponent(player.name)}?id=S${player.id}`}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="hover:underline text-blue-600 dark:text-blue-400"

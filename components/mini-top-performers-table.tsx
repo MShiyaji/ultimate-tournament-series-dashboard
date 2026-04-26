@@ -40,9 +40,9 @@ export function MiniTopPerformersTable({ players, filterName }: { players: any[]
                     </span>
                   </td>
                   <td className="py-1 px-1 text-center font-medium truncate" style={{maxWidth: "90px"}}>
-                    {player.userSlug ? (
-                      <a
-                        href={`https://www.start.gg/user/${player.userSlug}`}
+                    {player.id ? (
+                          <a
+                            href={`https://www.supermajor.gg/ultimate/player/${encodeURIComponent(player.name)}?id=S${player.id}`}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="text-blue-400 hover:underline"

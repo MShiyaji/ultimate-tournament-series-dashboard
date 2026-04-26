@@ -32,9 +32,9 @@ export function MiniSeedPerformanceTable({ players, filterName }: { players: any
                 <tr key={idx} className={idx !== filteredPlayers.length - 1 ? "border-b border-gray-800" : ""}>
                   <td className="py-1 px-1 text-center">{idx + 1}</td>
                   <td className="py-1 px-1 text-center font-medium truncate" style={{maxWidth: "90px"}}>
-                    {player.userSlug ? (
-                      <a
-                        href={`https://www.start.gg/user/${player.userSlug}`}
+                    {player.id ? (
+                          <a
+                            href={`https://www.supermajor.gg/ultimate/player/${encodeURIComponent(player.name)}?id=S${player.id}`}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="text-blue-400 hover:underline"
