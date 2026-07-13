@@ -76,7 +76,7 @@ function createAdaptiveDelay(initial = 200, min = 0, max = 5000, step = 100) {
   };
 }
 
-const GITHUB_ACTIONS_MAX_RUNTIME_MS = 5 * 60 * 1000; // 5 minutes
+const GITHUB_ACTIONS_MAX_RUNTIME_MS = 12 * 60 * 1000; // 12 minutes
 const GITHUB_ACTIONS_MAX_REQUESTS_PER_MIN = 50;
 
 let githubActionsStartTime = Date.now();
@@ -86,8 +86,8 @@ let githubActionsWindowStart = Date.now();
 function shouldExitForGithubActionsLimits() {
   // Check runtime
   if (Date.now() - githubActionsStartTime > GITHUB_ACTIONS_MAX_RUNTIME_MS) {
-    console.error("⏰ Exiting: Hit GitHub Actions max runtime limit.");
-    process.exit(1);
+    console.error("⏰ Exiting: Hit GitHub Actions max runtime limit. Exiting gracefully.");
+    process.exit(0);
   }
   // Check API request rate
   if (Date.now() - githubActionsWindowStart > 60 * 1000) {
@@ -106,6 +106,7 @@ function shouldExitForGithubActionsLimits() {
 async function downloadCache() {
   const command = new GetObjectCommand({ Bucket: process.env.AWS_BUCKET_NAME, Key: CACHE_KEY });
   const response = await s3.send(command);
+  if (!response.Body) throw new Error("No data received from S3");
   const text = await response.Body.transformToString();
   return JSON.parse(text);
 }
@@ -207,118 +208,118 @@ async function cacheBasicTournaments() {
   }
   // --- End of addition ---
 
-  // 2. Split dateChunks among API keys
-  function chunkArray<T>(array: T[], n: number): T[][] {
-    const chunks = Array.from({ length: n }, () => []);
-    array.forEach((item, i) => {
-      chunks[i % n].push(item);
-    });
-    return chunks;
-  }
-  const dateChunkGroups = chunkArray(dateChunks, STARTGG_API_KEYS.length);
+  // 2. Process chunks sequentially with key rotation
+  const getNextApiKey = getApiKeyRotator(STARTGG_API_KEYS);
 
-  // 3. Process each group in parallel, one per API key
-  await Promise.all(
-    dateChunkGroups.map(async (chunks, idx) => {
-      const apiKey = STARTGG_API_KEYS[idx];
-      for (const { start, end } of chunks) {
-        const chunkStartTimestamp = Math.floor(start.getTime() / 1000);
-        const chunkEndTimestamp = Math.floor(end.getTime() / 1000);
+  for (let i = 0; i < dateChunks.length; i++) {
+    // Check remaining time before processing next chunk
+    if (timeLeftMs() < 60000) { // less than 1 minute left
+      console.log("⏰ Not enough time left to safely process another chunk. Saving and exiting early.");
+      break;
+    }
 
-        let page = 1;
-        let totalPages = 1;
-        do {
-          // Add a heartbeat log to prevent timeouts
-          if (page % 3 === 0) {
-            console.log(`💓 Still processing - Key ${idx + 1}, Page ${page}/${totalPages}`);
-          }
-          
-          await delay(1000);
-          try {
-            const result = await fetchFromAPI(basicQuery, {
-              startTimestamp: chunkStartTimestamp,
-              endTimestamp: chunkEndTimestamp,
-              page,
-            }, apiKey);
+    const { start, end } = dateChunks[i];
+    console.log(`🔎 Processing chunk ${i + 1}/${dateChunks.length}: ${start.toLocaleDateString()} to ${end.toLocaleDateString()}...`);
 
-            const tournaments = result?.tournaments?.nodes || [];
-            totalPages = result?.tournaments?.pageInfo?.totalPages || 1;
+    const chunkStartTimestamp = Math.floor(start.getTime() / 1000);
+    const chunkEndTimestamp = Math.floor(end.getTime() / 1000);
 
-            for (const tournament of tournaments) {
-              // Validate the tournament has a valid ID
-              if (!tournament.id) {
-                console.warn("⚠️ Skipping tournament without ID:", tournament.name || "Unknown");
-                continue;
-              }
-              
-              // Ensure it's not already in our set (already synchronized for deduplication)
-              if (!existingIds.has(tournament.id)) {
-                newTournaments.push(tournament);
-                existingIds.add(tournament.id); // Immediately mark as processed
-              }
-            }
+    let page = 1;
+    let totalPages = 1;
+    const chunkNewTournaments: any[] = [];
 
-            console.log(`✅ [Key ${idx + 1}] Page ${page}/${totalPages}: Found ${tournaments.length} tournaments, ${newTournaments.length} new overall`);
-            page++;
-          } catch (error) {
-            console.error(`❌ [Key ${idx + 1}] Error fetching page ${page}:`, error);
-            await delay(5000);
-            if (page > 3) {
-              console.log("⚠️ Skipping to next chunk after multiple failures");
-              break;
-            }
-          }
-        } while (page <= totalPages);
+    do {
+      if (page % 3 === 0) {
+        console.log(`💓 Still processing chunk ${i + 1} - Page ${page}/${totalPages}`);
       }
-    })
-  );
+
+      await delay(1000);
+      const apiKey = getNextApiKey() || STARTGG_API_KEYS[0];
+      try {
+        const result = await fetchFromAPI(basicQuery, {
+          startTimestamp: chunkStartTimestamp,
+          endTimestamp: chunkEndTimestamp,
+          page,
+        }, apiKey);
+
+        const tournaments = result?.tournaments?.nodes || [];
+        totalPages = result?.tournaments?.pageInfo?.totalPages || 1;
+
+        for (const tournament of tournaments) {
+          if (!tournament.id) {
+            console.warn("⚠️ Skipping tournament without ID:", tournament.name || "Unknown");
+            continue;
+          }
+
+          if (!existingIds.has(tournament.id)) {
+            chunkNewTournaments.push(tournament);
+            newTournaments.push(tournament);
+            existingIds.add(tournament.id); // Immediately mark as processed
+          }
+        }
+
+        console.log(`✅ Page ${page}/${totalPages}: Found ${tournaments.length} tournaments, ${chunkNewTournaments.length} new in this chunk`);
+        page++;
+      } catch (error) {
+        console.error(`❌ Error fetching page ${page}:`, error);
+        await delay(5000);
+        if (page > 3) {
+          console.log("⚠️ Skipping to next chunk after multiple failures");
+          break;
+        }
+      }
+    } while (page <= totalPages);
+
+    // Progressive S3 Upload
+    if (chunkNewTournaments.length > 0) {
+      console.log(`📦 Found ${chunkNewTournaments.length} new tournaments in chunk ${i + 1}. Saving progress to S3...`);
+      try {
+        // Redownload cache to get latest state from S3
+        let currentCacheData;
+        try {
+          currentCacheData = await downloadCache();
+        } catch (e) {
+          console.log("⚠️ Failed to download cache during progressive upload. Initializing empty.");
+          currentCacheData = { tournaments: { nodes: [] } };
+        }
+
+        const currentNodes = currentCacheData?.tournaments?.nodes || [];
+        const tournamentMap = new Map();
+
+        // Load current nodes
+        for (const t of currentNodes) {
+          if (t.id) tournamentMap.set(t.id, t);
+        }
+        // Merge chunk nodes
+        for (const t of chunkNewTournaments) {
+          if (t.id) tournamentMap.set(t.id, t);
+        }
+
+        const mergedTournaments = Array.from(tournamentMap.values());
+        const updatedCacheData = {
+          tournaments: { nodes: mergedTournaments }
+        };
+
+        await uploadCache(updatedCacheData);
+        console.log(`✅ Progress saved! Cache now contains ${mergedTournaments.length} tournaments.`);
+      } catch (uploadError) {
+        console.error("❌ Failed to save progress to S3:", uploadError);
+        
+        try {
+          const fs = require('fs');
+          fs.writeFileSync('./tournament-cache-backup.json', JSON.stringify({ tournaments: { nodes: newTournaments } }));
+          console.log("⚠️ Saved to local backup file instead: ./tournament-cache-backup.json");
+        } catch (fsError) {
+          console.error("❌ Local backup failed:", fsError);
+        }
+      }
+    }
+  }
 
   if (newTournaments.length > 0) {
-    console.log(`📦 Found ${newTournaments.length} new tournaments. Updating cache...`);
-    
-    // Create deduplicated merged array by using tournament ID as the key
-    const tournamentMap = new Map();
-    
-    // First add existing tournaments to the map
-    for (const tournament of existingTournaments) {
-      if (tournament.id) {
-        tournamentMap.set(tournament.id, tournament);
-      }
-    }
-    
-    // Then add new tournaments, overwriting any with the same ID
-    for (const tournament of newTournaments) {
-      if (tournament.id) {
-        tournamentMap.set(tournament.id, tournament);
-      }
-    }
-    
-    // Convert map back to array
-    const basicTournaments = Array.from(tournamentMap.values());
-    
-    // Save to S3
-    const cacheData = {
-      tournaments: { nodes: basicTournaments }
-    };
-
-    console.log(`ℹ️ After deduplication: ${basicTournaments.length} total tournaments (${basicTournaments.length - existingTournaments.length} added)`);
-
-    try {
-      await uploadCache(cacheData);
-      console.log(`✅ Cache updated! Now contains ${basicTournaments.length} tournaments`);
-    } catch (uploadError) {
-      console.error("❌ Failed to upload to S3:", uploadError);
-
-      try {
-        const fs = require('fs');
-        fs.writeFileSync('./tournament-cache-backup.json', JSON.stringify(cacheData));
-        console.log("⚠️ Saved to local backup file instead: ./tournament-cache-backup.json");
-      } catch (fsError) {
-        console.error("❌ Even local backup failed:", fsError);
-      }
-    }
+    console.log(`🎉 Run completed! Added ${newTournaments.length} new tournaments in total.`);
   } else {
-    console.log("ℹ️ No new tournaments found. Cache is up to date.");
+    console.log("ℹ️ Run completed. No new tournaments were found or added.");
   }
 }
 
@@ -358,7 +359,8 @@ async function fetchFromAPI(query: string, variables: Record<string, any>, apiKe
       if (data.errors) throw new Error(data.errors.map((e: any) => e.message).join(", "));
 
       return data.data;
-    } catch (error) {
+    } catch (err) {
+      const error = err as any;
       if (error.name === 'AbortError') {
         console.log(`⏱️ Request timed out (attempt ${attempt}/${retries})`);
       } else {

@@ -7,15 +7,15 @@ import { useIsMobile } from "@/hooks/use-mobile"
 
 export function SeedPerformanceTable({ players, filterName, onViewFullList }) {
   const isMobile = useIsMobile();
-  
+
   // Always use the full players array for ranking
   const allPlayers = players
 
   // Filter by player name if filterName is provided
   const filteredPlayers = filterName?.trim()
     ? allPlayers.filter((p) =>
-        p.name?.toLowerCase().includes(filterName.trim().toLowerCase())
-      )
+      p.name?.toLowerCase().includes(filterName.trim().toLowerCase())
+    )
     : allPlayers.slice(0, 5) // Only show top 5 if no filter
 
   return (
@@ -60,16 +60,16 @@ export function SeedPerformanceTable({ players, filterName, onViewFullList }) {
                   avg > 0
                     ? "text-green-700 font-bold"
                     : avg < 0
-                    ? "text-red-700 font-bold"
-                    : ""
+                      ? "text-red-700 font-bold"
+                      : ""
                 // Color bestOutperform: green if positive, red if negative, default otherwise
                 const best = Number(player.bestOutperform)
                 const bestColor =
                   best > 0
                     ? "text-green-700 font-bold"
                     : best < 0
-                    ? "text-red-700 font-bold"
-                    : ""
+                      ? "text-red-700 font-bold"
+                      : ""
                 // Find the player's overall rank among allPlayers
                 const overallRank = allPlayers.findIndex(p => p.id === player.id) + 1
                 return (

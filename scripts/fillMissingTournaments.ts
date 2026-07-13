@@ -82,7 +82,7 @@ function getMonthRanges(monthsBack: number): { start: string, end: string }[] {
   return ranges.reverse();
 }
 
-// GraphQL query for tournaments by date
+// GraphQL query for tournaments by date (filtered to Smash Ultimate - videogame ID 1386)
 const tournamentsByDateQuery = `
   query TournamentsByDate($perPage: Int!, $page: Int!, $afterDate: Timestamp, $beforeDate: Timestamp) {
     tournaments(query: {
@@ -91,6 +91,7 @@ const tournamentsByDateQuery = `
       filter: {
         afterDate: $afterDate,
         beforeDate: $beforeDate
+        videogameIds: [1386]
       }
     }) {
       nodes {
@@ -98,11 +99,13 @@ const tournamentsByDateQuery = `
         name
         slug
         startAt
+        primaryContact
         city
         countryCode
-        events {
+        events(filter: { videogameId: 1386 }) {
           id
           name
+          numEntrants
         }
       }
       pageInfo {
